@@ -11,17 +11,17 @@ export async function POST(request) {
     const { username, password } = await request.json();
 
     if (!username || !password) {
-      return NextResponse.json({ error: 'Thiếu tên đăng nhập hoặc mật khẩu' }, { status: 400 });
+      return NextResponse.json({ error: 'Missing username or password' }, { status: 400 });
     }
 
     const trainer = await Trainer.findOne({ username: username.toLowerCase() });
     if (!trainer) {
-      return NextResponse.json({ error: 'Tên đăng nhập hoặc mật khẩu không chính xác' }, { status: 400 });
+      return NextResponse.json({ error: 'Incorrect username or password' }, { status: 400 });
     }
 
     const isMatch = await bcrypt.compare(password, trainer.password);
     if (!isMatch) {
-      return NextResponse.json({ error: 'Tên đăng nhập hoặc mật khẩu không chính xác' }, { status: 400 });
+      return NextResponse.json({ error: 'Incorrect username or password' }, { status: 400 });
     }
 
     // Sign JWT
@@ -49,6 +49,6 @@ export async function POST(request) {
 
   } catch (error) {
     console.error('Login API Error:', error);
-    return NextResponse.json({ error: 'Đã xảy ra lỗi hệ thống' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error occurred' }, { status: 500 });
   }
 }

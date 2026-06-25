@@ -7,7 +7,7 @@ export async function PUT(request) {
   try {
     const session = await getSession();
     if (!session) {
-      return NextResponse.json({ error: 'Chưa đăng nhập' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized session' }, { status: 401 });
     }
 
     await dbConnect();
@@ -27,6 +27,6 @@ export async function PUT(request) {
     return NextResponse.json({ success: true, trainer });
   } catch (error) {
     console.error('Trainer Profile Update API Error:', error);
-    return NextResponse.json({ error: 'Đã xảy ra lỗi hệ thống' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error occurred' }, { status: 500 });
   }
 }

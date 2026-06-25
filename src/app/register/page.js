@@ -27,7 +27,7 @@ export default function Register() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Đăng ký thất bại');
+        throw new Error(data.error || 'Registration failed. Please try again.');
       }
 
       router.push('/trainer');
@@ -42,8 +42,8 @@ export default function Register() {
   return (
     <main className="app-container">
       <div className="form-card">
-        <h2 className="form-title">Đăng ký</h2>
-        <p className="form-subtitle">Tạo tài khoản nhà huấn luyện mới</p>
+        <h2 className="form-title">Register</h2>
+        <p className="form-subtitle">Create a new trainer account</p>
         
         {error && (
           <div className="form-error">
@@ -54,7 +54,7 @@ export default function Register() {
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label htmlFor="username">Tên đăng nhập</label>
+            <label htmlFor="username">Username</label>
             <input 
               type="text" 
               id="username"
@@ -67,20 +67,20 @@ export default function Register() {
           </div>
 
           <div className="form-group">
-            <label htmlFor="displayName">Tên hiển thị (Tùy chọn)</label>
+            <label htmlFor="displayName">Display Name (Optional)</label>
             <input 
               type="text" 
               id="displayName"
               className="form-input"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="VD: Red, Ash Ketchum"
+              placeholder="e.g. Red, Ash Ketchum"
               autoComplete="name"
             />
           </div>
 
           <div className="form-group">
-            <label htmlFor="password">Mật khẩu</label>
+            <label htmlFor="password">Password</label>
             <input 
               type="password" 
               id="password"
@@ -97,12 +97,12 @@ export default function Register() {
             className="btn-submit"
             disabled={loading}
           >
-            {loading ? 'Đang xử lý...' : 'Đăng ký'}
+            {loading ? 'Processing...' : 'Register'}
           </button>
         </form>
 
         <p className="form-footer">
-          Đã có tài khoản? <Link href="/login">Đăng nhập</Link>
+          Already have an account? <Link href="/login">Login</Link>
         </p>
       </div>
     </main>

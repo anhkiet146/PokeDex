@@ -26,10 +26,9 @@ export default function Login() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Đăng nhập thất bại');
+        throw new Error(data.error || 'Login failed. Please check your credentials.');
       }
 
-      // Refresh page context to update layout navbar
       router.push('/trainer');
       router.refresh();
     } catch (err) {
@@ -42,8 +41,8 @@ export default function Login() {
   return (
     <main className="app-container">
       <div className="form-card">
-        <h2 className="form-title">Đăng nhập</h2>
-        <p className="form-subtitle">Chào mừng bạn quay lại Pokéđex</p>
+        <h2 className="form-title">Login</h2>
+        <p className="form-subtitle">Welcome back to Pokéđex</p>
         
         {error && (
           <div className="form-error">
@@ -54,7 +53,7 @@ export default function Login() {
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label htmlFor="username">Tên đăng nhập</label>
+            <label htmlFor="username">Username</label>
             <input 
               type="text" 
               id="username"
@@ -67,7 +66,7 @@ export default function Login() {
           </div>
 
           <div className="form-group">
-            <label htmlFor="password">Mật khẩu</label>
+            <label htmlFor="password">Password</label>
             <input 
               type="password" 
               id="password"
@@ -84,12 +83,12 @@ export default function Login() {
             className="btn-submit"
             disabled={loading}
           >
-            {loading ? 'Đang xử lý...' : 'Đăng nhập'}
+            {loading ? 'Processing...' : 'Login'}
           </button>
         </form>
 
         <p className="form-footer">
-          Chưa có tài khoản? <Link href="/register">Đăng ký ngay</Link>
+          Don&apos;t have an account? <Link href="/register">Register now</Link>
         </p>
       </div>
     </main>

@@ -28,7 +28,7 @@ export default function SubmitBuildForm({ pokemonId, trainer }) {
     setLoading(true);
 
     if (!buildTitle || !description) {
-      setError('Vui lòng điền đầy đủ Tiêu đề và Mô tả hướng dẫn');
+      setError('Please fill in both Title and Gameplay Strategy fields');
       setLoading(false);
       return;
     }
@@ -56,10 +56,10 @@ export default function SubmitBuildForm({ pokemonId, trainer }) {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Không thể đăng hướng build');
+        throw new Error(data.error || 'Failed to submit build guide');
       }
 
-      setSuccess('Đăng hướng build thành công!');
+      setSuccess('Build guide submitted successfully!');
       setBuildTitle('');
       setItem('');
       setNature('');
@@ -78,14 +78,14 @@ export default function SubmitBuildForm({ pokemonId, trainer }) {
 
   return (
     <div style={{
-      background: 'rgba(255, 255, 255, 0.02)',
+      background: 'rgba(0, 0, 0, 0.01)',
       border: '1px solid var(--border-color)',
-      borderRadius: '24px',
+      borderRadius: '16px',
       padding: '2rem',
       marginTop: '2rem'
     }}>
-      <h3 style={{ fontSize: '1.3rem', fontWeight: '700', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-        <i className="fa-solid fa-pen-to-square" style={{ color: 'var(--primary-color)' }}></i> Đóng góp hướng Build của bạn
+      <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-primary)' }}>
+        <i className="fa-solid fa-pen-to-square" style={{ color: 'var(--primary-color)' }}></i> Submit Your Competitive Build
       </h3>
 
       {error && (
@@ -101,7 +101,7 @@ export default function SubmitBuildForm({ pokemonId, trainer }) {
           border: '1px solid rgba(74, 222, 128, 0.3)',
           color: '#4ade80',
           padding: '0.8rem',
-          borderRadius: '12px',
+          borderRadius: '10px',
           fontSize: '0.85rem',
           marginBottom: '1.2rem',
           display: 'flex',
@@ -115,45 +115,45 @@ export default function SubmitBuildForm({ pokemonId, trainer }) {
 
       <form onSubmit={handleSubmit}>
         <div className="form-group">
-          <label htmlFor="buildTitle">Tên hướng build *</label>
+          <label htmlFor="buildTitle">Build Title *</label>
           <input 
             type="text" 
             id="buildTitle"
             className="form-input"
             value={buildTitle}
             onChange={(e) => setBuildTitle(e.target.value)}
-            placeholder="VD: Đấu Sĩ Cân Bằng, Sát Thủ Tốc Độ..."
+            placeholder="e.g. Choice Band Physical Attacker, Bulky Support..."
             required
           />
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.2rem' }}>
           <div className="form-group" style={{ marginBottom: 0 }}>
-            <label htmlFor="item">Vật phẩm (Held Item)</label>
+            <label htmlFor="item">Held Item</label>
             <input 
               type="text" 
               id="item"
               className="form-input"
               value={item}
               onChange={(e) => setItem(e.target.value)}
-              placeholder="VD: Leftovers, Choice Band"
+              placeholder="e.g. Leftovers, Choice Band"
             />
           </div>
           <div className="form-group" style={{ marginBottom: 0 }}>
-            <label htmlFor="nature">Tính chất (Nature)</label>
+            <label htmlFor="nature">Nature</label>
             <input 
               type="text" 
               id="nature"
               className="form-input"
               value={nature}
               onChange={(e) => setNature(e.target.value)}
-              placeholder="VD: Jolly, Adamant"
+              placeholder="e.g. Jolly, Adamant"
             />
           </div>
         </div>
 
         <div className="form-group">
-          <label>Bộ chiêu thức (4 Chiêu)</label>
+          <label>Moveset (4 Slots)</label>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem' }}>
             {moves.map((move, index) => (
               <input 
@@ -162,26 +162,26 @@ export default function SubmitBuildForm({ pokemonId, trainer }) {
                 className="form-input"
                 value={move}
                 onChange={(e) => handleMoveChange(index, e.target.value)}
-                placeholder={`Chiêu thức ${index + 1}`}
+                placeholder={`Move ${index + 1}`}
               />
             ))}
           </div>
         </div>
 
         <div className="form-group">
-          <label htmlFor="teamComps">Pokémon đồng đội ăn ý (Nhập ID, phân cách bằng dấu phẩy)</label>
+          <label htmlFor="teamComps">Synergistic Teammates (Enter IDs, comma-separated)</label>
           <input 
             type="text" 
             id="teamComps"
             className="form-input"
             value={teamComps}
             onChange={(e) => setTeamComps(e.target.value)}
-            placeholder="VD: 3, 9, 134 (Charizard, Blastoise, Vaporeon)"
+            placeholder="e.g. 3, 9, 134 (Venusaur, Blastoise, Vaporeon)"
           />
         </div>
 
         <div className="form-group">
-          <label htmlFor="description">Hướng dẫn chi tiết & Lối chơi *</label>
+          <label htmlFor="description">Gameplay Strategy & Guide *</label>
           <textarea 
             id="description"
             value={description}
@@ -190,9 +190,9 @@ export default function SubmitBuildForm({ pokemonId, trainer }) {
             rows="4"
             style={{
               width: '100%',
-              background: 'rgba(255, 255, 255, 0.02)',
+              background: '#fcfdfe',
               border: '1px solid var(--border-color)',
-              borderRadius: '14px',
+              borderRadius: '10px',
               padding: '0.8rem 1rem',
               color: 'var(--text-primary)',
               fontFamily: 'inherit',
@@ -200,7 +200,7 @@ export default function SubmitBuildForm({ pokemonId, trainer }) {
               outline: 'none',
               resize: 'vertical'
             }}
-            placeholder="Nêu cách vận hành chiêu thức, đồng đội đi cùng và mẹo khi chiến đấu..."
+            placeholder="Explain moveset rotation, synergy, battle tips, and counters..."
           />
         </div>
 
@@ -210,7 +210,7 @@ export default function SubmitBuildForm({ pokemonId, trainer }) {
           disabled={loading}
           style={{ width: 'auto', padding: '0 2rem' }}
         >
-          {loading ? 'Đang gửi...' : 'Đăng hướng Build'}
+          {loading ? 'Submitting...' : 'Submit Build'}
         </button>
       </form>
     </div>

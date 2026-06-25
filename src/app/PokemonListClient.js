@@ -4,24 +4,24 @@ import { useState } from 'react';
 import Link from 'next/link';
 
 const TYPE_TRANSLATIONS = {
-  normal: { name: 'Thường', color: '#A8A77A', light: '#f6f6f1' },
-  fire: { name: 'Lửa', color: '#EE8130', light: '#fdf3eb' },
-  water: { name: 'Nước', color: '#6390F0', light: '#eff4fe' },
-  electric: { name: 'Điện', color: '#F7D02C', light: '#fefaf0' },
-  grass: { name: 'Cỏ', color: '#7AC74C', light: '#f2faf0' },
-  ice: { name: 'Băng', color: '#96D9D6', light: '#f5fafb' },
-  fighting: { name: 'Đấu Sĩ', color: '#C22E28', light: '#fcf0ef' },
-  poison: { name: 'Độc', color: '#A33EA1', light: '#faf0fa' },
-  ground: { name: 'Đất', color: '#E2BF65', light: '#faf8f0' },
-  flying: { name: 'Bay', color: '#A98FF3', light: '#f6f4fe' },
-  psychic: { name: 'Siêu Linh', color: '#F95587', light: '#fef0f4' },
-  bug: { name: 'Côn Trùng', color: '#A6B91A', light: '#fafbf0' },
-  rock: { name: 'Đá', color: '#B6A136', light: '#faf9f0' },
-  ghost: { name: 'Ma', color: '#735797', light: '#f4eff7' },
-  dragon: { name: 'Rồng', color: '#6F35FC', light: '#f3efff' },
-  steel: { name: 'Thép', color: '#B7B7CE', light: '#f7f7fa' },
-  fairy: { name: 'Tiên', color: '#D685AD', light: '#fef3f7' },
-  dark: { name: 'Bóng Tối', color: '#705746', light: '#f4f1f0' }
+  normal: { name: 'Normal', color: '#A8A77A', light: '#f6f6f1' },
+  fire: { name: 'Fire', color: '#EE8130', light: '#fdf3eb' },
+  water: { name: 'Water', color: '#6390F0', light: '#eff4fe' },
+  electric: { name: 'Electric', color: '#F7D02C', light: '#fefaf0' },
+  grass: { name: 'Grass', color: '#7AC74C', light: '#f2faf0' },
+  ice: { name: 'Ice', color: '#96D9D6', light: '#f5fafb' },
+  fighting: { name: 'Fighting', color: '#C22E28', light: '#fcf0ef' },
+  poison: { name: 'Poison', color: '#A33EA1', light: '#faf0fa' },
+  ground: { name: 'Ground', color: '#E2BF65', light: '#faf8f0' },
+  flying: { name: 'Flying', color: '#A98FF3', light: '#f6f4fe' },
+  psychic: { name: 'Psychic', color: '#F95587', light: '#fef0f4' },
+  bug: { name: 'Bug', color: '#A6B91A', light: '#fafbf0' },
+  rock: { name: 'Rock', color: '#B6A136', light: '#faf9f0' },
+  ghost: { name: 'Ghost', color: '#735797', light: '#f4eff7' },
+  dragon: { name: 'Dragon', color: '#6F35FC', light: '#f3efff' },
+  steel: { name: 'Steel', color: '#B7B7CE', light: '#f7f7fa' },
+  fairy: { name: 'Fairy', color: '#D685AD', light: '#fef3f7' },
+  dark: { name: 'Dark', color: '#705746', light: '#f4f1f0' }
 };
 
 const TYPE_ICONS = {
@@ -74,11 +74,11 @@ export default function PokemonListClient({ initialPokemon }) {
 
   const getSortLabel = () => {
     switch (currentSort) {
-      case 'id-asc': return 'ID: Tăng dần';
-      case 'id-desc': return 'ID: Giảm dần';
-      case 'name-asc': return 'Tên: A - Z';
-      case 'name-desc': return 'Tên: Z - A';
-      default: return 'ID: Tăng dần';
+      case 'id-asc': return 'ID: Ascending';
+      case 'id-desc': return 'ID: Descending';
+      case 'name-asc': return 'Name: A - Z';
+      case 'name-desc': return 'Name: Z - A';
+      default: return 'ID: Ascending';
     }
   };
 
@@ -101,15 +101,15 @@ export default function PokemonListClient({ initialPokemon }) {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <button className="btn-scan" onClick={() => alert('Quét thành công!')}>
+          <button className="btn-scan" onClick={() => alert('Scan completed successfully!')}>
             Scan Dex
           </button>
         </div>
       </section>
 
-      {/* 2. Browse by Type circular scroll list (Screenshot 1) */}
+      {/* 2. Browse by Type circular grid list (Redesigned) */}
       <section className="type-filter-section">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
           <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Browse by Type</h3>
           {selectedType !== 'all' && (
             <button 
@@ -157,17 +157,17 @@ export default function PokemonListClient({ initialPokemon }) {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
             <h3 style={{ fontSize: '1.3rem', fontWeight: 800 }}>Discover Pokémon</h3>
             
-            {/* Sorting Filter Dropdown */}
+            {/* Sorting Filter Dropdown (Fixed styling) */}
             <div className="dropdown-filter" onClick={(e) => e.stopPropagation()}>
-              <button className="filter-btn" style={{ height: '40px', padding: '0 1rem', borderRadius: '10px' }} onClick={() => setShowSortMenu(!showSortMenu)}>
+              <button className="filter-btn" onClick={() => setShowSortMenu(!showSortMenu)}>
                 <span>{getSortLabel()}</span>
-                <i className="fa-solid fa-sort" style={{ marginLeft: '0.5rem' }}></i>
+                <i className="fa-solid fa-sort" style={{ marginLeft: '0.25rem' }}></i>
               </button>
               <div className={`dropdown-menu ${showSortMenu ? 'show' : ''}`} style={{ right: 0 }}>
-                <div className={`dropdown-item ${currentSort === 'id-asc' ? 'active' : ''}`} onClick={() => { setCurrentSort('id-asc'); setShowSortMenu(false); }}>ID: Tăng dần</div>
-                <div className={`dropdown-item ${currentSort === 'id-desc' ? 'active' : ''}`} onClick={() => { setCurrentSort('id-desc'); setShowSortMenu(false); }}>ID: Giảm dần</div>
-                <div className={`dropdown-item ${currentSort === 'name-asc' ? 'active' : ''}`} onClick={() => { setCurrentSort('name-asc'); setShowSortMenu(false); }}>Tên: A - Z</div>
-                <div className={`dropdown-item ${currentSort === 'name-desc' ? 'active' : ''}`} onClick={() => { setCurrentSort('name-desc'); setShowSortMenu(false); }}>Tên: Z - A</div>
+                <div className={`dropdown-item ${currentSort === 'id-asc' ? 'active' : ''}`} onClick={() => { setCurrentSort('id-asc'); setShowSortMenu(false); }}>ID: Ascending</div>
+                <div className={`dropdown-item ${currentSort === 'id-desc' ? 'active' : ''}`} onClick={() => { setCurrentSort('id-desc'); setShowSortMenu(false); }}>ID: Descending</div>
+                <div className={`dropdown-item ${currentSort === 'name-asc' ? 'active' : ''}`} onClick={() => { setCurrentSort('name-asc'); setShowSortMenu(false); }}>Name: A - Z</div>
+                <div className={`dropdown-item ${currentSort === 'name-desc' ? 'active' : ''}`} onClick={() => { setCurrentSort('name-desc'); setShowSortMenu(false); }}>Name: Z - A</div>
               </div>
             </div>
           </div>
@@ -215,8 +215,8 @@ export default function PokemonListClient({ initialPokemon }) {
             ) : (
               <div className="no-results" style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '4rem 1rem' }}>
                 <i className="fa-regular fa-face-frown" style={{ fontSize: '3.5rem', color: 'var(--text-secondary)', marginBottom: '1rem', display: 'block' }}></i>
-                <h3 style={{ fontSize: '1.4rem' }}>Không tìm thấy Pokémon nào</h3>
-                <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>Hãy thử tìm kiếm với từ khóa khác hoặc điều chỉnh bộ lọc.</p>
+                <h3 style={{ fontSize: '1.4rem' }}>No Pokémon Found</h3>
+                <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>Try searching with a different keyword or adjusting the filters.</p>
               </div>
             )}
           </div>
@@ -264,7 +264,7 @@ export default function PokemonListClient({ initialPokemon }) {
                 <i className="fa-solid fa-chevron-right" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}></i>
               </Link>
             </div>
-            <button className="btn-submit" style={{ background: '#ffffff', color: 'var(--primary-color)', border: '1px solid var(--primary-color)', marginTop: '1.2rem', height: '40px', fontSize: '0.85rem' }} onClick={() => alert('Tính năng Meta Report sắp ra mắt!')}>
+            <button className="btn-submit" style={{ background: '#ffffff', color: 'var(--primary-color)', border: '1px solid var(--primary-color)', marginTop: '1.2rem', height: '40px', fontSize: '0.85rem' }} onClick={() => alert('Meta Report feature coming soon!')}>
               View Full Meta Report
             </button>
           </div>

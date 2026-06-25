@@ -11,12 +11,12 @@ export async function POST(request) {
     const { username, password, displayName } = await request.json();
 
     if (!username || !password) {
-      return NextResponse.json({ error: 'Thiếu tên đăng nhập hoặc mật khẩu' }, { status: 400 });
+      return NextResponse.json({ error: 'Missing username or password' }, { status: 400 });
     }
 
     const existingUser = await Trainer.findOne({ username });
     if (existingUser) {
-      return NextResponse.json({ error: 'Tên đăng nhập đã tồn tại' }, { status: 400 });
+      return NextResponse.json({ error: 'Username already exists' }, { status: 400 });
     }
 
     // Hash password
@@ -54,6 +54,6 @@ export async function POST(request) {
 
   } catch (error) {
     console.error('Register API Error:', error);
-    return NextResponse.json({ error: 'Đã xảy ra lỗi hệ thống' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error occurred' }, { status: 500 });
   }
 }

@@ -7,7 +7,7 @@ export async function POST(request) {
   try {
     const session = await getSession();
     if (!session) {
-      return NextResponse.json({ error: 'Chưa đăng nhập' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized session' }, { status: 401 });
     }
 
     await dbConnect();
@@ -15,7 +15,7 @@ export async function POST(request) {
     const idNum = Number(pokemonId);
 
     if (!idNum) {
-      return NextResponse.json({ error: 'ID Pokémon không hợp lệ' }, { status: 400 });
+      return NextResponse.json({ error: 'Invalid Pokémon ID' }, { status: 400 });
     }
 
     let update = {};
@@ -24,7 +24,7 @@ export async function POST(request) {
     } else if (action === 'remove') {
       update = { $pull: { ownedPokemon: idNum } };
     } else {
-      return NextResponse.json({ error: 'Hành động không hợp lệ' }, { status: 400 });
+      return NextResponse.json({ error: 'Invalid collection action' }, { status: 400 });
     }
 
     const trainer = await Trainer.findByIdAndUpdate(
@@ -36,6 +36,6 @@ export async function POST(request) {
     return NextResponse.json({ success: true, trainer });
   } catch (error) {
     console.error('Trainer Pokemon Update API Error:', error);
-    return NextResponse.json({ error: 'Đã xảy ra lỗi hệ thống' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error occurred' }, { status: 500 });
   }
 }

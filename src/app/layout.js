@@ -12,14 +12,14 @@ const outfit = Outfit({
 
 export const metadata = {
   title: 'Pokedex - Premium Pokemon Database',
-  description: 'Khám phá và tìm kiếm thông tin về các loài Pokemon với giao diện đẹp mắt, hiện đại và lưu dữ liệu vào MongoDB.',
+  description: 'Explore the magical world of Pokémon with a competitive stats database powered by MongoDB.',
 };
 
 export default async function RootLayout({ children }) {
   const trainer = await getSession();
 
   return (
-    <html lang="vi" className={`${outfit.variable}`}>
+    <html lang="en" className={`${outfit.variable}`}>
       <head>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
       </head>
@@ -33,13 +33,13 @@ export default async function RootLayout({ children }) {
             
             <div className="nav-links">
               <Link href="/" className="nav-link">
-                <i className="fa-solid fa-house"></i> Trang chủ
+                <i className="fa-solid fa-house"></i> Home
               </Link>
               
               {trainer ? (
                 <>
                   <Link href="/trainer" className="nav-link">
-                    <i className="fa-solid fa-shield-halved"></i> Nhà huấn luyện
+                    <i className="fa-solid fa-shield-halved"></i> Trainer
                   </Link>
                   <Link href="/trainer" className="nav-user" style={{ textDecoration: 'none', color: 'inherit' }}>
                     <img src={trainer.avatar} alt={trainer.displayName} className="nav-avatar" />
@@ -48,7 +48,7 @@ export default async function RootLayout({ children }) {
                 </>
               ) : (
                 <Link href="/login" className="btn-login">
-                  Đăng nhập
+                  Login
                 </Link>
               )}
             </div>
