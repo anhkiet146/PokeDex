@@ -197,18 +197,24 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
         >
           <i className="fa-solid fa-id-card"></i> Trainer Profile
         </button>
-        <button 
-          className={`trainer-nav-item ${activeTab === 'collection' ? 'active' : ''}`}
-          onClick={() => setActiveTab('collection')}
-        >
-          <i className="fa-solid fa-circle-nodes"></i> My Pokemon
-        </button>
-        <button 
-          className={`trainer-nav-item ${activeTab === 'settings' ? 'active' : ''}`}
-          onClick={() => setActiveTab('settings')}
-        >
-          <i className="fa-solid fa-sliders"></i> Account Settings
-        </button>
+        
+        {!isAdmin && (
+          <button 
+            className={`trainer-nav-item ${activeTab === 'collection' ? 'active' : ''}`}
+            onClick={() => setActiveTab('collection')}
+          >
+            <i className="fa-solid fa-circle-nodes"></i> My Pokemon
+          </button>
+        )}
+        
+        {!isAdmin && (
+          <button 
+            className={`trainer-nav-item ${activeTab === 'settings' ? 'active' : ''}`}
+            onClick={() => setActiveTab('settings')}
+          >
+            <i className="fa-solid fa-sliders"></i> Account Settings
+          </button>
+        )}
 
         {isAdmin && (
           <button 
@@ -237,13 +243,17 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
             
             {/* Trainer Profile Card (Screenshot 2) */}
             <div className="trainer-profile-card">
-              <div className="avatar-container" onClick={() => setActiveTab('settings')}>
+              {isAdmin ? (
                 <img src={trainer.avatar} alt={trainer.displayName} className="trainer-card-avatar" />
-                <div className="avatar-overlay">
-                  <i className="fa-solid fa-pen-to-square"></i>
-                  <span>Change Avatar</span>
+              ) : (
+                <div className="avatar-container" onClick={() => setActiveTab('settings')}>
+                  <img src={trainer.avatar} alt={trainer.displayName} className="trainer-card-avatar" />
+                  <div className="avatar-overlay">
+                    <i className="fa-solid fa-pen-to-square"></i>
+                    <span>Change Avatar</span>
+                  </div>
                 </div>
-              </div>
+              )}
               <div className="trainer-card-details">
                 <h2>{trainer.displayName}</h2>
                 <div style={{ fontSize: '0.85rem', color: 'var(--primary-color)', fontWeight: 800, marginTop: '0.15rem' }}>
@@ -251,161 +261,167 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
                 </div>
                 <div className="trainer-card-meta">
                   <span><i className="fa-solid fa-calendar-days"></i> Joined {trainer.createdAt ? new Date(trainer.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) : 'June 2026'}</span>
-                  <span><i className="fa-solid fa-trophy"></i> {Math.floor(trainer.ownedPokemon.length * 1.5)} Badges</span>
-                  <span><i className="fa-solid fa-file-invoice"></i> {trainer.ownedPokemon.length} Entries</span>
+                  <span><i className="fa-solid fa-trophy"></i> {isAdmin ? 0 : Math.floor(trainer.ownedPokemon.length * 1.5)} Badges</span>
+                  <span><i className="fa-solid fa-file-invoice"></i> {isAdmin ? 0 : trainer.ownedPokemon.length} Entries</span>
                 </div>
               </div>
-              <button className="btn-login" style={{ background: '#ffffff', color: 'var(--text-primary)', border: '1px solid var(--border-color)', height: '40px', padding: '0 1.2rem' }} onClick={() => setActiveTab('settings')}>
-                Edit Profile
-              </button>
+              {!isAdmin && (
+                <button className="btn-login" style={{ background: '#ffffff', color: 'var(--text-primary)', border: '1px solid var(--border-color)', height: '40px', padding: '0 1.2rem' }} onClick={() => setActiveTab('settings')}>
+                  Edit Profile
+                </button>
+              )}
             </div>
 
-            {/* Vanguard Squad (Screenshot 2) */}
-            <div style={{ marginBottom: '2rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
-                <h3 className="trainer-section-title" style={{ marginBottom: 0 }}>
-                  <i className="fa-solid fa-users"></i> Vanguard Squad
-                </h3>
-                {ownedPokemonDetails.length > 6 && (
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>First 6 shown</span>
-                )}
-              </div>
+            {!isAdmin && (
+              <>
+                {/* Vanguard Squad (Screenshot 2) */}
+                <div style={{ marginBottom: '2rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
+                    <h3 className="trainer-section-title" style={{ marginBottom: 0 }}>
+                      <i className="fa-solid fa-users"></i> Vanguard Squad
+                    </h3>
+                    {ownedPokemonDetails.length > 6 && (
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>First 6 shown</span>
+                    )}
+                  </div>
 
-              {vanguardSquad.length > 0 ? (
-                <div className="vanguard-grid">
-                  {vanguardSquad.map(p => {
-                    const transColor = TYPE_TRANSLATIONS[p.types[0]]?.color || '#999';
-                    const lvl = getPokeLevel(p.id);
-                    return (
-                      <div key={p.id} className="vanguard-card">
-                        <div className="vanguard-header">
-                          <span className="vanguard-id">#{p.id.toString().padStart(4, '0')}</span>
-                          <span className="vanguard-lvl">Lv. {lvl}</span>
-                        </div>
-                        
-                        <div className="vanguard-body">
-                          <img src={p.image} alt={p.name} className="vanguard-img" />
-                          <div className="vanguard-info">
-                            <h4 className="vanguard-name">{p.name}</h4>
-                            <div style={{ display: 'flex', gap: '0.3rem' }}>
-                              {p.types.map(t => {
-                                const trans = TYPE_TRANSLATIONS[t] || { name: t, color: '#999' };
-                                return (
-                                  <span key={t} className="type-badge" style={{ backgroundColor: trans.color, fontSize: '0.65rem', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>
-                                    {trans.name}
-                                  </span>
-                                );
-                              })}
+                  {vanguardSquad.length > 0 ? (
+                    <div className="vanguard-grid">
+                      {vanguardSquad.map(p => {
+                        const transColor = TYPE_TRANSLATIONS[p.types[0]]?.color || '#999';
+                        const lvl = getPokeLevel(p.id);
+                        return (
+                          <div key={p.id} className="vanguard-card">
+                            <div className="vanguard-header">
+                              <span className="vanguard-id">#{p.id.toString().padStart(4, '0')}</span>
+                              <span className="vanguard-lvl">Lv. {lvl}</span>
+                            </div>
+                            
+                            <div className="vanguard-body">
+                              <img src={p.image} alt={p.name} className="vanguard-img" />
+                              <div className="vanguard-info">
+                                <h4 className="vanguard-name">{p.name}</h4>
+                                <div style={{ display: 'flex', gap: '0.3rem' }}>
+                                  {p.types.map(t => {
+                                    const trans = TYPE_TRANSLATIONS[t] || { name: t, color: '#999' };
+                                    return (
+                                      <span key={t} className="type-badge" style={{ backgroundColor: trans.color, fontSize: '0.65rem', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>
+                                        {trans.name}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="hp-bar-wrapper">
+                              <div className="hp-bar-label">
+                                <span>HP</span>
+                                <span>{lvl * 4} / {lvl * 4}</span>
+                              </div>
+                              <div className="hp-bar-container">
+                                <div className="hp-bar-fill" style={{ width: '100%' }}></div>
+                              </div>
                             </div>
                           </div>
-                        </div>
-
-                        <div className="hp-bar-wrapper">
-                          <div className="hp-bar-label">
-                            <span>HP</span>
-                            <span>{lvl * 4} / {lvl * 4}</span>
-                          </div>
-                          <div className="hp-bar-container">
-                            <div className="hp-bar-fill" style={{ width: '100%' }}></div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div style={{ textAlign: 'center', padding: '3rem 1rem', background: '#ffffff', border: '1px dashed var(--border-color)', borderRadius: '16px', marginBottom: '2.5rem' }}>
-                  <i className="fa-solid fa-circle-question" style={{ fontSize: '2.5rem', color: 'var(--text-secondary)', marginBottom: '0.8rem', display: 'block' }}></i>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Your active squad is empty. Add Pokémon from the &quot;My Pokemon&quot; tab.</p>
-                </div>
-              )}
-            </div>
-
-            {/* Extended Collection Table (Screenshot 2) */}
-            <div className="collection-table-card">
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <h3 className="trainer-section-title" style={{ marginBottom: 0 }}>
-                  <i className="fa-solid fa-boxes-stacked"></i> Extended Collection
-                </h3>
-                
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <div className="hero-search-wrapper" style={{ margin: 0, maxWidth: '200px' }}>
-                    <input 
-                      type="text" 
-                      className="hero-search-input" 
-                      style={{ height: '36px', fontSize: '0.8rem', borderRadius: '8px', padding: '0 0.8rem' }}
-                      placeholder="Search collection..."
-                      value={collectionSearch}
-                      onChange={(e) => setCollectionSearch(e.target.value)}
-                    />
-                  </div>
-                  <button className="filter-btn" style={{ height: '36px', borderRadius: '8px', fontSize: '0.8rem' }} onClick={() => alert('Sorting...')}>
-                    Sort by Level
-                  </button>
-                </div>
-              </div>
-
-              {filteredOwnedPokemon.length > 0 ? (
-                <div className="collection-table-wrapper">
-                  <table className="collection-table">
-                    <thead>
-                      <tr>
-                        <th>#</th>
-                        <th>Pokemon</th>
-                        <th>Type</th>
-                        <th>Level</th>
-                        <th>Base Stats</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredOwnedPokemon.map((p, idx) => {
-                        const lvl = getPokeLevel(p.id);
-                        const statSum = p.id * 3 + 400; // Mock stat total sum
-                        const percent = Math.min((statSum / 700) * 100, 100);
-                        const barColor = idx % 3 === 0 ? '#6390f0' : idx % 3 === 1 ? '#ec4899' : '#10b981'; // blue, pink, green matching screenshot 2
-                        
-                        return (
-                          <tr key={p.id}>
-                            <td style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>#{p.id.toString().padStart(4, '0')}</td>
-                            <td>
-                              <Link href={`/pokemon/${p.id}`} className="table-pokemon-cell" style={{ textDecoration: 'none', color: 'inherit' }}>
-                                <img src={p.image} alt={p.name} className="table-pokemon-img" />
-                                <span className="table-pokemon-name">{p.name}</span>
-                              </Link>
-                            </td>
-                            <td>
-                              <div style={{ display: 'flex', gap: '0.2rem' }}>
-                                {p.types.map(t => {
-                                  const trans = TYPE_TRANSLATIONS[t] || { name: t, color: '#999' };
-                                  return (
-                                    <span key={t} className="type-badge" style={{ backgroundColor: trans.color, fontSize: '0.65rem', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>
-                                      {trans.name}
-                                    </span>
-                                  );
-                                })}
-                              </div>
-                            </td>
-                            <td className="table-lvl-cell">{lvl}</td>
-                            <td>
-                              <div className="table-stats-bar-wrapper">
-                                <div className="hp-bar-container" style={{ flexGrow: 1, height: '5px' }}>
-                                  <div className="hp-bar-fill" style={{ width: `${percent}%`, backgroundColor: barColor }}></div>
-                                </div>
-                                <span className="table-stats-val">{statSum} total</span>
-                              </div>
-                            </td>
-                          </tr>
                         );
                       })}
-                    </tbody>
-                  </table>
+                    </div>
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: '3rem 1rem', background: '#ffffff', border: '1px dashed var(--border-color)', borderRadius: '16px', marginBottom: '2.5rem' }}>
+                      <i className="fa-solid fa-circle-question" style={{ fontSize: '2.5rem', color: 'var(--text-secondary)', marginBottom: '0.8rem', display: 'block' }}></i>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Your active squad is empty. Add Pokémon from the &quot;My Pokemon&quot; tab.</p>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div style={{ textAlign: 'center', padding: '2rem 1rem', background: '#f8fafc', border: '1px dashed var(--border-color)', borderRadius: '12px' }}>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>No matching Pokémon in collection.</p>
+
+                {/* Extended Collection Table (Screenshot 2) */}
+                <div className="collection-table-card">
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <h3 className="trainer-section-title" style={{ marginBottom: 0 }}>
+                      <i className="fa-solid fa-boxes-stacked"></i> Extended Collection
+                    </h3>
+                    
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      <div className="hero-search-wrapper" style={{ margin: 0, maxWidth: '200px' }}>
+                        <input 
+                          type="text" 
+                          className="hero-search-input" 
+                          style={{ height: '36px', fontSize: '0.8rem', borderRadius: '8px', padding: '0 0.8rem' }}
+                          placeholder="Search collection..."
+                          value={collectionSearch}
+                          onChange={(e) => setCollectionSearch(e.target.value)}
+                        />
+                      </div>
+                      <button className="filter-btn" style={{ height: '36px', borderRadius: '8px', fontSize: '0.8rem' }} onClick={() => alert('Sorting...')}>
+                        Sort by Level
+                      </button>
+                    </div>
+                  </div>
+
+                  {filteredOwnedPokemon.length > 0 ? (
+                    <div className="collection-table-wrapper">
+                      <table className="collection-table">
+                        <thead>
+                          <tr>
+                            <th>#</th>
+                            <th>Pokemon</th>
+                            <th>Type</th>
+                            <th>Level</th>
+                            <th>Base Stats</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredOwnedPokemon.map((p, idx) => {
+                            const lvl = getPokeLevel(p.id);
+                            const statSum = p.id * 3 + 400; // Mock stat total sum
+                            const percent = Math.min((statSum / 700) * 100, 100);
+                            const barColor = idx % 3 === 0 ? '#6390f0' : idx % 3 === 1 ? '#ec4899' : '#10b981'; // blue, pink, green matching screenshot 2
+                            
+                            return (
+                              <tr key={p.id}>
+                                <td style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>#{p.id.toString().padStart(4, '0')}</td>
+                                <td>
+                                  <Link href={`/pokemon/${p.id}`} className="table-pokemon-cell" style={{ textDecoration: 'none', color: 'inherit' }}>
+                                    <img src={p.image} alt={p.name} className="table-pokemon-img" />
+                                    <span className="table-pokemon-name">{p.name}</span>
+                                  </Link>
+                                </td>
+                                <td>
+                                  <div style={{ display: 'flex', gap: '0.2rem' }}>
+                                    {p.types.map(t => {
+                                      const trans = TYPE_TRANSLATIONS[t] || { name: t, color: '#999' };
+                                      return (
+                                        <span key={t} className="type-badge" style={{ backgroundColor: trans.color, fontSize: '0.65rem', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>
+                                          {trans.name}
+                                        </span>
+                                      );
+                                    })}
+                                  </div>
+                                </td>
+                                <td className="table-lvl-cell">{lvl}</td>
+                                <td>
+                                  <div className="table-stats-bar-wrapper">
+                                    <div className="hp-bar-container" style={{ flexGrow: 1, height: '5px' }}>
+                                      <div className="hp-bar-fill" style={{ width: `${percent}%`, backgroundColor: barColor }}></div>
+                                    </div>
+                                    <span className="table-stats-val">{statSum} total</span>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: '2rem 1rem', background: '#f8fafc', border: '1px dashed var(--border-color)', borderRadius: '12px' }}>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>No matching Pokémon in collection.</p>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              </>
+            )}
 
           </div>
         )}
