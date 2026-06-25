@@ -1,12 +1,24 @@
-# Windows thumbnail database
+# Dependencies
+node_modules/
+
+# Next.js build output
+.next/
+out/
+
+# Production build logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local environment variables
+.env.local
+.env*.local
+
+# Windows system files
 Thumbs.db
 ehthumbs.db
 ehthumbs_vista.db
-
-# Folder config file
 Desktop.ini
-
-# Recycle Bin used on NTFS volumes
 $RECYCLE.BIN/
 
 # IDE/Editor folders
