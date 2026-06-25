@@ -34,6 +34,71 @@ const AVATAR_PRESETS = [
   { name: 'Eevee', url: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/133.png' }
 ];
 
+const getTeamSuggestions = (ownedIds, allPkmn, includeUnowned, format) => {
+  if (ownedIds.length === 0 && !includeUnowned) return [];
+
+  // Candidate pool: only owned vs all
+  let pool = includeUnowned ? allPkmn : allPkmn.filter(p => ownedIds.includes(p.id));
+  
+  if (pool.length === 0) return [];
+
+  const selected = [];
+  
+  // Heuristic roles for battle configurations
+  const roles = [
+    { name: 'Lead / Hazard Setter', icon: 'fa-flag', check: p => p.types.includes('ground') || p.types.includes('rock') || p.types.includes('steel') },
+    { name: 'Physical Sweeper', icon: 'fa-hand-fist', check: p => p.types.includes('fighting') || p.types.includes('dragon') || p.types.includes('bug') || p.types.includes('normal') },
+    { name: 'Special Sweeper', icon: 'fa-wand-magic-sparkles', check: p => p.types.includes('psychic') || p.types.includes('fire') || p.types.includes('electric') || p.types.includes('ghost') },
+    { name: 'Defensive Wall / Tank', icon: 'fa-shield', check: p => p.types.includes('normal') || p.types.includes('water') || p.types.includes('ice') },
+    { name: 'Tactical Support', icon: 'fa-heart', check: p => p.types.includes('poison') || p.types.includes('grass') || p.types.includes('fairy') },
+    { name: 'Versatile Utility', icon: 'fa-screwdriver-wrench', check: p => true }
+  ];
+
+  const doubleRoles = [
+    { name: 'Synergy / Weather', icon: 'fa-cloud-sun-rain', check: p => p.types.includes('water') || p.types.includes('fire') || p.types.includes('rock') },
+    { name: 'Tailwind Support', icon: 'fa-wind', check: p => p.types.includes('flying') || p.types.includes('electric') || p.types.includes('psychic') },
+    { name: 'Physical Attacker', icon: 'fa-hand-fist', check: p => p.types.includes('fighting') || p.types.includes('dragon') || p.types.includes('steel') },
+    { name: 'Special Sweeper', icon: 'fa-wand-magic-sparkles', check: p => p.types.includes('ghost') || p.types.includes('fire') || p.types.includes('ice') },
+    { name: 'Redirection / Support', icon: 'fa-circle-plus', check: p => p.types.includes('fairy') || p.types.includes('grass') || p.types.includes('poison') },
+    { name: 'Closer Sweeper', icon: 'fa-bolt', check: p => true }
+  ];
+
+  const activeRoles = format === 'double' ? doubleRoles : roles;
+  const usedIds = new Set();
+  
+  for (let i = 0; i < 6; i++) {
+    const role = activeRoles[i];
+    let match = pool.find(p => !usedIds.has(p.id) && role.check(p));
+    
+    if (!match) {
+      match = pool.find(p => !usedIds.has(p.id));
+    }
+    
+    if (match) {
+      selected.push({
+        ...match,
+        roleName: role.name,
+        roleIcon: role.icon,
+        isOwned: ownedIds.includes(match.id)
+      });
+      usedIds.add(match.id);
+    } else if (includeUnowned) {
+      const backup = allPkmn.find(p => !usedIds.has(p.id));
+      if (backup) {
+        selected.push({
+          ...backup,
+          roleName: role.name,
+          roleIcon: role.icon,
+          isOwned: false
+        });
+        usedIds.add(backup.id);
+      }
+    }
+  }
+
+  return selected;
+};
+
 export default function TrainerClient({ initialTrainer, allPokemon }) {
   const [trainer, setTrainer] = useState(initialTrainer);
   const [activeTab, setActiveTab] = useState('profile'); // profile | collection | settings | admin
@@ -50,6 +115,10 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
   const [pokeSearch, setPokeSearch] = useState('');
   const [collectionSearch, setCollectionSearch] = useState('');
 
+  // Team suggester states
+  const [suggestScope, setSuggestScope] = useState('owned'); // owned | all
+  const [suggestFormat, setSuggestFormat] = useState('single'); // single | double
+
   // Admin settings states
   const [adminTrainers, setAdminTrainers] = useState([]);
   const [adminLoading, setAdminLoading] = useState(false);
@@ -57,6 +126,7 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
 
   const router = useRouter();
   const isAdmin = trainer.username === 'admin' || trainer.role === 'admin';
+  const suggestedTeam = getTeamSuggestions(trainer.ownedPokemon, allPokemon, suggestScope === 'all', suggestFormat);
 
   // Fetch trainers for Admin
   const fetchAdminTrainers = async () => {
@@ -465,6 +535,196 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
                   </div>
                 );
               })}
+            </div>
+
+            {/* SMART TEAM SUGGESTER SECTION */}
+            <div style={{ marginTop: '2.5rem', paddingTop: '2rem', borderTop: '1px solid var(--border-color)' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
+                <div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                    <i className="fa-solid fa-wand-magic-sparkles" style={{ color: 'var(--primary-color)' }}></i> Smart Team Suggester
+                  </h3>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                    Get recommendations for competitive singles or doubles layouts.
+                  </p>
+                </div>
+
+                {/* Controls */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.8rem' }}>
+                  {/* Pool Filter */}
+                  <div style={{ display: 'flex', background: '#f1f5f9', padding: '0.2rem', borderRadius: '8px' }}>
+                    <button 
+                      type="button"
+                      style={{ 
+                        padding: '0.4rem 0.8rem', 
+                        fontSize: '0.75rem', 
+                        fontWeight: 700, 
+                        border: 'none', 
+                        borderRadius: '6px', 
+                        cursor: 'pointer',
+                        background: suggestScope === 'owned' ? '#ffffff' : 'transparent',
+                        color: suggestScope === 'owned' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                        boxShadow: suggestScope === 'owned' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                      }}
+                      onClick={() => setSuggestScope('owned')}
+                    >
+                      Only My Pokemon
+                    </button>
+                    <button 
+                      type="button"
+                      style={{ 
+                        padding: '0.4rem 0.8rem', 
+                        fontSize: '0.75rem', 
+                        fontWeight: 700, 
+                        border: 'none', 
+                        borderRadius: '6px', 
+                        cursor: 'pointer',
+                        background: suggestScope === 'all' ? '#ffffff' : 'transparent',
+                        color: suggestScope === 'all' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                        boxShadow: suggestScope === 'all' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                      }}
+                      onClick={() => setSuggestScope('all')}
+                    >
+                      Include Unowned
+                    </button>
+                  </div>
+
+                  {/* Battle Format */}
+                  <div style={{ display: 'flex', background: '#f1f5f9', padding: '0.2rem', borderRadius: '8px' }}>
+                    <button 
+                      type="button"
+                      style={{ 
+                        padding: '0.4rem 0.8rem', 
+                        fontSize: '0.75rem', 
+                        fontWeight: 700, 
+                        border: 'none', 
+                        borderRadius: '6px', 
+                        cursor: 'pointer',
+                        background: suggestFormat === 'single' ? '#ffffff' : 'transparent',
+                        color: suggestFormat === 'single' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                        boxShadow: suggestFormat === 'single' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                      }}
+                      onClick={() => setSuggestFormat('single')}
+                    >
+                      Single Battle (6v6)
+                    </button>
+                    <button 
+                      type="button"
+                      style={{ 
+                        padding: '0.4rem 0.8rem', 
+                        fontSize: '0.75rem', 
+                        fontWeight: 700, 
+                        border: 'none', 
+                        borderRadius: '6px', 
+                        cursor: 'pointer',
+                        background: suggestFormat === 'double' ? '#ffffff' : 'transparent',
+                        color: suggestFormat === 'double' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                        boxShadow: suggestFormat === 'double' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                      }}
+                      onClick={() => setSuggestFormat('double')}
+                    >
+                      Double Battle
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Suggestions Grid */}
+              {suggestedTeam.length > 0 ? (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '1rem' }}>
+                  {suggestedTeam.map((p, idx) => {
+                    const primaryType = p.types[0];
+                    const transColor = TYPE_TRANSLATIONS[primaryType]?.color || '#999';
+                    
+                    return (
+                      <div 
+                        key={`${p.id}-${idx}`} 
+                        style={{ 
+                          background: p.isOwned ? '#ffffff' : '#f8fafc', 
+                          border: `1px solid ${p.isOwned ? 'var(--border-color)' : '#e2e8f0'}`,
+                          borderRadius: '16px',
+                          padding: '1rem',
+                          position: 'relative',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          opacity: p.isOwned ? 1 : 0.7,
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.01)',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        {/* Owned / Suggestion badge */}
+                        <span 
+                          style={{ 
+                            position: 'absolute',
+                            top: '0.5rem',
+                            right: '0.5rem',
+                            fontSize: '0.6rem',
+                            padding: '0.15rem 0.4rem',
+                            borderRadius: '4px',
+                            fontWeight: 800,
+                            background: p.isOwned ? '#dcfce7' : '#fee2e2',
+                            color: p.isOwned ? '#15803d' : '#b91c1c'
+                          }}
+                        >
+                          {p.isOwned ? 'Owned' : 'Catch Rec.'}
+                        </span>
+
+                        <img src={p.image} alt={p.name} style={{ width: '60px', height: '60px', objectFit: 'contain', marginBottom: '0.5rem' }} />
+                        
+                        <h4 style={{ fontSize: '0.85rem', fontWeight: 800, textTransform: 'capitalize', color: 'var(--text-primary)', marginBottom: '0.2rem' }}>
+                          {p.name}
+                        </h4>
+
+                        <div style={{ display: 'flex', gap: '0.2rem', marginBottom: '0.6rem' }}>
+                          {p.types.map(t => (
+                            <span 
+                              key={t} 
+                              className="type-badge" 
+                              style={{ 
+                                backgroundColor: TYPE_TRANSLATIONS[t]?.color || '#999', 
+                                fontSize: '0.55rem', 
+                                padding: '0.05rem 0.25rem', 
+                                borderRadius: '3px' 
+                              }}
+                            >
+                              {TYPE_TRANSLATIONS[t]?.name || t}
+                            </span>
+                          ))}
+                        </div>
+
+                        {/* Assigned Role */}
+                        <div 
+                          style={{ 
+                            marginTop: 'auto',
+                            width: '100%',
+                            background: '#f1f5f9',
+                            borderRadius: '8px',
+                            padding: '0.35rem',
+                            fontSize: '0.65rem',
+                            fontWeight: 700,
+                            color: 'var(--text-secondary)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '0.25rem'
+                          }}
+                        >
+                          <i className={`fa-solid ${p.roleIcon}`}></i>
+                          <span>{p.roleName}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '3rem 1rem', background: '#f8fafc', border: '1px dashed var(--border-color)', borderRadius: '16px' }}>
+                  <i className="fa-solid fa-wand-magic-sparkles" style={{ fontSize: '2rem', color: '#cbd5e1', marginBottom: '0.8rem', display: 'block' }}></i>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                    Add Pokémon to your collection above to receive smart team suggestions.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}
