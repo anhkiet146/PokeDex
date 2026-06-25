@@ -34,7 +34,7 @@ const AVATAR_PRESETS = [
   { name: 'Eevee', url: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/133.png' }
 ];
 
-const getTeamSuggestions = (ownedIds, allPkmn, includeUnowned, format) => {
+const getTeamSuggestions = (ownedIds, allPkmn, includeUnowned, format, archetype) => {
   if (ownedIds.length === 0 && !includeUnowned) return [];
 
   // Candidate pool: only owned vs all
@@ -44,26 +44,69 @@ const getTeamSuggestions = (ownedIds, allPkmn, includeUnowned, format) => {
 
   const selected = [];
   
-  // Heuristic roles for battle configurations
-  const roles = [
-    { name: 'Lead / Hazard Setter', icon: 'fa-flag', check: p => p.types.includes('ground') || p.types.includes('rock') || p.types.includes('steel') },
-    { name: 'Physical Sweeper', icon: 'fa-hand-fist', check: p => p.types.includes('fighting') || p.types.includes('dragon') || p.types.includes('bug') || p.types.includes('normal') },
-    { name: 'Special Sweeper', icon: 'fa-wand-magic-sparkles', check: p => p.types.includes('psychic') || p.types.includes('fire') || p.types.includes('electric') || p.types.includes('ghost') },
-    { name: 'Defensive Wall / Tank', icon: 'fa-shield', check: p => p.types.includes('normal') || p.types.includes('water') || p.types.includes('ice') },
-    { name: 'Tactical Support', icon: 'fa-heart', check: p => p.types.includes('poison') || p.types.includes('grass') || p.types.includes('fairy') },
-    { name: 'Versatile Utility', icon: 'fa-screwdriver-wrench', check: p => true }
-  ];
+  // Custom roles for different battle formats and team archetypes
+  let activeRoles = [];
 
-  const doubleRoles = [
-    { name: 'Synergy / Weather', icon: 'fa-cloud-sun-rain', check: p => p.types.includes('water') || p.types.includes('fire') || p.types.includes('rock') },
-    { name: 'Tailwind Support', icon: 'fa-wind', check: p => p.types.includes('flying') || p.types.includes('electric') || p.types.includes('psychic') },
-    { name: 'Physical Attacker', icon: 'fa-hand-fist', check: p => p.types.includes('fighting') || p.types.includes('dragon') || p.types.includes('steel') },
-    { name: 'Special Sweeper', icon: 'fa-wand-magic-sparkles', check: p => p.types.includes('ghost') || p.types.includes('fire') || p.types.includes('ice') },
-    { name: 'Redirection / Support', icon: 'fa-circle-plus', check: p => p.types.includes('fairy') || p.types.includes('grass') || p.types.includes('poison') },
-    { name: 'Closer Sweeper', icon: 'fa-bolt', check: p => true }
-  ];
+  if (format === 'single') {
+    if (archetype === 'offense') {
+      activeRoles = [
+        { name: 'Fast Lead', icon: 'fa-gauge-high', check: p => p.types.includes('flying') || p.types.includes('electric') || p.types.includes('fire') },
+        { name: 'Physical Sweeper', icon: 'fa-hand-fist', check: p => p.types.includes('fighting') || p.types.includes('dragon') || p.types.includes('steel') },
+        { name: 'Special Sweeper', icon: 'fa-wand-magic-sparkles', check: p => p.types.includes('fire') || p.types.includes('psychic') || p.types.includes('ghost') },
+        { name: 'Aggressive Pivot', icon: 'fa-rotate', check: p => p.types.includes('electric') || p.types.includes('bug') },
+        { name: 'Wallbreaker', icon: 'fa-burst', check: p => p.types.includes('ground') || p.types.includes('rock') || p.types.includes('dark') },
+        { name: 'Clean-up Sweeper', icon: 'fa-bolt', check: p => true }
+      ];
+    } else if (archetype === 'defense') {
+      activeRoles = [
+        { name: 'Hazard Setter', icon: 'fa-flag', check: p => p.types.includes('rock') || p.types.includes('ground') || p.types.includes('steel') },
+        { name: 'Defensive Wall', icon: 'fa-shield', check: p => p.types.includes('water') || p.types.includes('normal') },
+        { name: 'Special Wall', icon: 'fa-gem', check: p => p.types.includes('normal') || p.types.includes('fairy') || p.types.includes('ice') },
+        { name: 'Cleric / Support', icon: 'fa-heart-pulse', check: p => p.types.includes('fairy') || p.types.includes('grass') },
+        { name: 'Status Inducer', icon: 'fa-skull', check: p => p.types.includes('poison') || p.types.includes('ghost') },
+        { name: 'Stall Utility', icon: 'fa-anchor', check: p => true }
+      ];
+    } else { // balanced
+      activeRoles = [
+        { name: 'Lead / Hazard Setter', icon: 'fa-flag', check: p => p.types.includes('ground') || p.types.includes('rock') || p.types.includes('steel') },
+        { name: 'Physical Sweeper', icon: 'fa-hand-fist', check: p => p.types.includes('fighting') || p.types.includes('dragon') || p.types.includes('bug') || p.types.includes('normal') },
+        { name: 'Special Sweeper', icon: 'fa-wand-magic-sparkles', check: p => p.types.includes('psychic') || p.types.includes('fire') || p.types.includes('electric') || p.types.includes('ghost') },
+        { name: 'Defensive Wall / Tank', icon: 'fa-shield', check: p => p.types.includes('normal') || p.types.includes('water') || p.types.includes('ice') },
+        { name: 'Tactical Support', icon: 'fa-heart', check: p => p.types.includes('poison') || p.types.includes('grass') || p.types.includes('fairy') },
+        { name: 'Versatile Utility', icon: 'fa-screwdriver-wrench', check: p => true }
+      ];
+    }
+  } else { // double VGC
+    if (archetype === 'offense') {
+      activeRoles = [
+        { name: 'Speed / Tailwind', icon: 'fa-wind', check: p => p.types.includes('flying') || p.types.includes('electric') },
+        { name: 'Physical Attacker', icon: 'fa-hand-fist', check: p => p.types.includes('fighting') || p.types.includes('dragon') },
+        { name: 'Special Sweeper', icon: 'fa-wand-magic-sparkles', check: p => p.types.includes('fire') || p.types.includes('psychic') },
+        { name: 'Spread Sweeper', icon: 'fa-burst', check: p => p.types.includes('ground') || p.types.includes('rock') },
+        { name: 'Fast Pivot / Attacker', icon: 'fa-bolt', check: p => p.types.includes('dark') || p.types.includes('bug') },
+        { name: 'Closer Sweeper', icon: 'fa-gauge-high', check: p => true }
+      ];
+    } else if (archetype === 'defense') {
+      activeRoles = [
+        { name: 'Screen Setter', icon: 'fa-shield-halved', check: p => p.types.includes('psychic') || p.types.includes('fairy') },
+        { name: 'Redirection / Support', icon: 'fa-circle-plus', check: p => p.types.includes('grass') || p.types.includes('normal') },
+        { name: 'Bulky Water / Pivot', icon: 'fa-droplet', check: p => p.types.includes('water') },
+        { name: 'Bulky Attacker', icon: 'fa-mountain', check: p => p.types.includes('ground') || p.types.includes('steel') || p.types.includes('ice') },
+        { name: 'Debuffer / Cleric', icon: 'fa-heart', check: p => p.types.includes('poison') },
+        { name: 'Counter Attacker', icon: 'fa-reply', check: p => true }
+      ];
+    } else { // balanced
+      activeRoles = [
+        { name: 'Synergy / Weather', icon: 'fa-cloud-sun-rain', check: p => p.types.includes('water') || p.types.includes('fire') || p.types.includes('rock') },
+        { name: 'Tailwind Support', icon: 'fa-wind', check: p => p.types.includes('flying') || p.types.includes('electric') || p.types.includes('psychic') },
+        { name: 'Physical Attacker', icon: 'fa-hand-fist', check: p => p.types.includes('fighting') || p.types.includes('dragon') || p.types.includes('steel') },
+        { name: 'Special Sweeper', icon: 'fa-wand-magic-sparkles', check: p => p.types.includes('ghost') || p.types.includes('fire') || p.types.includes('ice') },
+        { name: 'Redirection / Support', icon: 'fa-circle-plus', check: p => p.types.includes('fairy') || p.types.includes('grass') || p.types.includes('poison') },
+        { name: 'Closer Sweeper', icon: 'fa-bolt', check: p => true }
+      ];
+    }
+  }
 
-  const activeRoles = format === 'double' ? doubleRoles : roles;
   const usedIds = new Set();
   
   for (let i = 0; i < 6; i++) {
@@ -118,6 +161,7 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
   // Team suggester states
   const [suggestScope, setSuggestScope] = useState('owned'); // owned | all
   const [suggestFormat, setSuggestFormat] = useState('single'); // single | double
+  const [suggestArchetype, setSuggestArchetype] = useState('balanced'); // balanced | offense | defense
 
   // Admin settings states
   const [adminTrainers, setAdminTrainers] = useState([]);
@@ -126,7 +170,7 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
 
   const router = useRouter();
   const isAdmin = trainer.username === 'admin' || trainer.role === 'admin';
-  const suggestedTeam = getTeamSuggestions(trainer.ownedPokemon, allPokemon, suggestScope === 'all', suggestFormat);
+  const suggestedTeam = getTeamSuggestions(trainer.ownedPokemon, allPokemon, suggestScope === 'all', suggestFormat, suggestArchetype);
 
   // Fetch trainers for Admin
   const fetchAdminTrainers = async () => {
@@ -624,6 +668,61 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
                       onClick={() => setSuggestFormat('double')}
                     >
                       Double Battle
+                    </button>
+                  </div>
+
+                  {/* Team Archetype */}
+                  <div style={{ display: 'flex', background: '#f1f5f9', padding: '0.2rem', borderRadius: '8px' }}>
+                    <button 
+                      type="button"
+                      style={{ 
+                        padding: '0.4rem 0.8rem', 
+                        fontSize: '0.75rem', 
+                        fontWeight: 700, 
+                        border: 'none', 
+                        borderRadius: '6px', 
+                        cursor: 'pointer',
+                        background: suggestArchetype === 'balanced' ? '#ffffff' : 'transparent',
+                        color: suggestArchetype === 'balanced' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                        boxShadow: suggestArchetype === 'balanced' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                      }}
+                      onClick={() => setSuggestArchetype('balanced')}
+                    >
+                      Balanced
+                    </button>
+                    <button 
+                      type="button"
+                      style={{ 
+                        padding: '0.4rem 0.8rem', 
+                        fontSize: '0.75rem', 
+                        fontWeight: 700, 
+                        border: 'none', 
+                        borderRadius: '6px', 
+                        cursor: 'pointer',
+                        background: suggestArchetype === 'offense' ? '#ffffff' : 'transparent',
+                        color: suggestArchetype === 'offense' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                        boxShadow: suggestArchetype === 'offense' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                      }}
+                      onClick={() => setSuggestArchetype('offense')}
+                    >
+                      Offense
+                    </button>
+                    <button 
+                      type="button"
+                      style={{ 
+                        padding: '0.4rem 0.8rem', 
+                        fontSize: '0.75rem', 
+                        fontWeight: 700, 
+                        border: 'none', 
+                        borderRadius: '6px', 
+                        cursor: 'pointer',
+                        background: suggestArchetype === 'defense' ? '#ffffff' : 'transparent',
+                        color: suggestArchetype === 'defense' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                        boxShadow: suggestArchetype === 'defense' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                      }}
+                      onClick={() => setSuggestArchetype('defense')}
+                    >
+                      Defense
                     </button>
                   </div>
                 </div>
