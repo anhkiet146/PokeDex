@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -25,9 +25,18 @@ const TYPE_TRANSLATIONS = {
   dark: { name: 'Dark', color: '#705746' }
 };
 
+const AVATAR_PRESETS = [
+  { name: 'Red', url: 'https://images.unsplash.com/photo-1628157582853-a796fa650a6a?w=150&auto=format&fit=crop&q=60' },
+  { name: 'Ash', url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=60' },
+  { name: 'Misty', url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=60' },
+  { name: 'Brock', url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=60' },
+  { name: 'Pikachu', url: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/25.png' },
+  { name: 'Eevee', url: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/133.png' }
+];
+
 export default function TrainerClient({ initialTrainer, allPokemon }) {
   const [trainer, setTrainer] = useState(initialTrainer);
-  const [activeTab, setActiveTab] = useState('profile'); // profile | collection | settings
+  const [activeTab, setActiveTab] = useState('profile'); // profile | collection | settings | admin
   
   // Profile edit settings
   const [displayName, setDisplayName] = useState(trainer.displayName);
@@ -41,7 +50,37 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
   const [pokeSearch, setPokeSearch] = useState('');
   const [collectionSearch, setCollectionSearch] = useState('');
 
+  // Admin settings states
+  const [adminTrainers, setAdminTrainers] = useState([]);
+  const [adminLoading, setAdminLoading] = useState(false);
+  const [adminError, setAdminError] = useState('');
+
   const router = useRouter();
+  const isAdmin = trainer.username === 'admin' || trainer.role === 'admin';
+
+  // Fetch trainers for Admin
+  const fetchAdminTrainers = async () => {
+    setAdminLoading(true);
+    setAdminError('');
+    try {
+      const res = await fetch('/api/admin/trainers');
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to fetch trainers');
+      }
+      setAdminTrainers(data.trainers || []);
+    } catch (err) {
+      setAdminError(err.message);
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'admin' && isAdmin) {
+      fetchAdminTrainers();
+    }
+  }, [activeTab, isAdmin]);
 
   // Handle Logout
   const handleLogout = async () => {
@@ -106,6 +145,24 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
     }
   };
 
+  // Delete Trainer Account
+  const handleDeleteTrainer = async (id, name) => {
+    if (!window.confirm(`Are you sure you want to delete trainer "${name}"? This action cannot be undone.`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/admin/trainers?id=${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to delete trainer');
+      }
+      setAdminTrainers(prev => prev.filter(t => t._id !== id));
+      router.refresh();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
   // Get Owned Pokemon Detailed Objects
   const ownedPokemonDetails = allPokemon.filter(p => trainer.ownedPokemon.includes(p.id));
 
@@ -152,6 +209,15 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
         >
           <i className="fa-solid fa-sliders"></i> Account Settings
         </button>
+
+        {isAdmin && (
+          <button 
+            className={`trainer-nav-item ${activeTab === 'admin' ? 'active' : ''}`}
+            onClick={() => setActiveTab('admin')}
+          >
+            <i className="fa-solid fa-users-gear"></i> Manage Accounts
+          </button>
+        )}
         
         <button 
           className="trainer-nav-item"
@@ -171,11 +237,17 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
             
             {/* Trainer Profile Card (Screenshot 2) */}
             <div className="trainer-profile-card">
-              <img src={trainer.avatar} alt={trainer.displayName} className="trainer-card-avatar" />
+              <div className="avatar-container" onClick={() => setActiveTab('settings')}>
+                <img src={trainer.avatar} alt={trainer.displayName} className="trainer-card-avatar" />
+                <div className="avatar-overlay">
+                  <i className="fa-solid fa-pen-to-square"></i>
+                  <span>Change Avatar</span>
+                </div>
+              </div>
               <div className="trainer-card-details">
                 <h2>{trainer.displayName}</h2>
                 <div style={{ fontSize: '0.85rem', color: 'var(--primary-color)', fontWeight: 800, marginTop: '0.15rem' }}>
-                  ID: #{(trainer.id || '0000').substring(0, 8).toUpperCase()}
+                  ID: #{(trainer.id || trainer._id || '00000000').substring(0, 8).toUpperCase()}
                 </div>
                 <div className="trainer-card-meta">
                   <span><i className="fa-solid fa-calendar-days"></i> Joined {trainer.createdAt ? new Date(trainer.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) : 'June 2026'}</span>
@@ -190,7 +262,7 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
 
             {/* Vanguard Squad (Screenshot 2) */}
             <div style={{ marginBottom: '2rem' }}>
-              <div style={{ display: 'flex', justifycontent: 'space-between', alignitems: 'center', marginBottom: '1.2rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
                 <h3 className="trainer-section-title" style={{ marginBottom: 0 }}>
                   <i className="fa-solid fa-users"></i> Vanguard Squad
                 </h3>
@@ -202,7 +274,7 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
               {vanguardSquad.length > 0 ? (
                 <div className="vanguard-grid">
                   {vanguardSquad.map(p => {
-                    const primaryType = p.types[0];
+                    const transColor = TYPE_TRANSLATIONS[p.types[0]]?.color || '#999';
                     const lvl = getPokeLevel(p.id);
                     return (
                       <div key={p.id} className="vanguard-card">
@@ -251,12 +323,12 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
 
             {/* Extended Collection Table (Screenshot 2) */}
             <div className="collection-table-card">
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', justifycontent: 'space-between', alignitems: 'center', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                 <h3 className="trainer-section-title" style={{ marginBottom: 0 }}>
                   <i className="fa-solid fa-boxes-stacked"></i> Extended Collection
                 </h3>
                 
-                <div style={{ display: 'flex', gap: '0.5rem', alignitems: 'center' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                   <div className="hero-search-wrapper" style={{ margin: 0, maxWidth: '200px' }}>
                     <input 
                       type="text" 
@@ -362,7 +434,7 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
               </div>
             </div>
 
-            <div className="pokemon-select-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', maxHeight: '420px', background: '#f8fafc', padding: '1rem' }}>
+            <div className="pokemon-select-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', padding: '0.8rem' }}>
               {filteredSearchPokemon.map(p => {
                 const isOwned = trainer.ownedPokemon.includes(p.id);
                 return (
@@ -370,10 +442,10 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
                     key={p.id}
                     className={`pokemon-select-card ${isOwned ? 'selected' : ''}`}
                     onClick={() => handleTogglePokemon(p.id, isOwned)}
-                    style={{ background: '#ffffff', borderRadius: '12px', border: isOwned ? '2px solid var(--primary-color)' : '1px solid var(--border-color)' }}
+                    style={{ padding: '0.4rem', border: isOwned ? '2px solid var(--primary-color)' : '1px solid var(--border-color)' }}
                   >
-                    <img src={p.image} alt={p.name} style={{ width: '50px', height: '50px' }} />
-                    <span style={{ fontSize: '0.75rem', textTransform: 'capitalize', fontWeight: 700, display: 'block' }}>{p.name}</span>
+                    <img src={p.image} alt={p.name} style={{ width: '40px', height: '40px', objectFit: 'contain' }} />
+                    <span style={{ fontSize: '0.7rem', textTransform: 'capitalize', fontWeight: 700, display: 'block', marginTop: '0.2rem' }}>{p.name}</span>
                   </div>
                 );
               })}
@@ -415,15 +487,32 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
                 />
               </div>
 
+              {/* Avatar Presets Grid */}
               <div className="form-group">
-                <label htmlFor="editAvatar">Avatar Image URL</label>
+                <label>Choose Avatar Preset</label>
+                <div className="avatar-presets-grid">
+                  {AVATAR_PRESETS.map((preset) => (
+                    <div 
+                      key={preset.name}
+                      className={`avatar-preset-item ${avatar === preset.url ? 'selected' : ''}`}
+                      onClick={() => setAvatar(preset.url)}
+                    >
+                      <img src={preset.url} alt={preset.name} className="avatar-preset-img" />
+                      <span className="avatar-preset-name">{preset.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="editAvatar">Or Custom Avatar Image URL</label>
                 <input 
                   type="url" 
                   id="editAvatar"
                   className="form-input"
                   value={avatar}
                   onChange={(e) => setAvatar(e.target.value)}
-                  placeholder="Enter avatar image URL..."
+                  placeholder="Enter custom image URL..."
                 />
               </div>
 
@@ -450,8 +539,95 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
           </div>
         )}
 
+        {/* ADMIN TAB */}
+        {activeTab === 'admin' && isAdmin && (
+          <div className="collection-table-card">
+            <div style={{ marginBottom: '1rem' }}>
+              <h3 className="trainer-section-title" style={{ marginBottom: '0.4rem' }}>
+                <i className="fa-solid fa-users-gear"></i> Manage Trainer Accounts
+              </h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: '1.5' }}>
+                As an administrator, you can view registered trainer accounts and delete inactive or non-compliant users.
+              </p>
+            </div>
+
+            {adminLoading ? (
+              <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+                <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: '2rem', color: 'var(--primary-color)', marginBottom: '0.5rem' }}></i>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Loading accounts...</p>
+              </div>
+            ) : adminError ? (
+              <div className="form-error" style={{ marginBottom: '1.2rem' }}>
+                <i className="fa-solid fa-triangle-exclamation"></i>
+                <span>{adminError}</span>
+              </div>
+            ) : adminTrainers.length > 0 ? (
+              <div className="collection-table-wrapper">
+                <table className="collection-table">
+                  <thead>
+                    <tr>
+                      <th>Avatar</th>
+                      <th>Username</th>
+                      <th>Trainer Name</th>
+                      <th>Role</th>
+                      <th>Owned Pokemon</th>
+                      <th>Joined Date</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {adminTrainers.map(t => (
+                      <tr key={t._id}>
+                        <td>
+                          <img 
+                            src={t.avatar || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=60'} 
+                            alt={t.displayName} 
+                            style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--border-color)' }} 
+                          />
+                        </td>
+                        <td style={{ fontWeight: 700 }}>{t.username}</td>
+                        <td>{t.displayName}</td>
+                        <td>
+                          <span 
+                            style={{ 
+                              fontSize: '0.75rem', 
+                              padding: '0.2rem 0.5rem', 
+                              borderRadius: '6px', 
+                              fontWeight: 700, 
+                              background: t.role === 'admin' ? 'var(--primary-light)' : '#f1f5f9', 
+                              color: t.role === 'admin' ? 'var(--primary-color)' : 'var(--text-secondary)' 
+                            }}
+                          >
+                            {t.role || 'user'}
+                          </span>
+                        </td>
+                        <td>{t.ownedPokemon ? t.ownedPokemon.length : 0} Pokémon</td>
+                        <td>{new Date(t.createdAt).toLocaleDateString('en-US')}</td>
+                        <td>
+                          <button
+                            className="btn-delete-user"
+                            onClick={() => handleDeleteTrainer(t._id, t.displayName)}
+                            disabled={t.username === 'admin' || t.role === 'admin' || t.username === trainer.username}
+                          >
+                            <i className="fa-solid fa-trash-can"></i> Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '2rem' }}>
+                <p style={{ color: 'var(--text-secondary)' }}>No trainer accounts found.</p>
+              </div>
+            )}
+          </div>
+        )}
+
       </section>
       
     </div>
   );
 }
+

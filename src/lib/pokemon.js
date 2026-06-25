@@ -2,13 +2,13 @@ let cachedPokemonList = null;
 
 export async function getPokemonList() {
   if (cachedPokemonList) {
-    console.log('Serving 151 Pokemon from Server Cache.');
+    console.log('Serving 201 Pokemon from Server Cache.');
     return cachedPokemonList;
   }
 
-  console.log('Fetching 151 Pokemon details from PokéAPI...');
+  console.log('Fetching 201 Pokemon details from PokéAPI...');
   try {
-    const res = await fetch('https://pokeapi.co/api/v2/pokemon?limit=151');
+    const res = await fetch('https://pokeapi.co/api/v2/pokemon?limit=201');
     if (!res.ok) {
       throw new Error('Failed to fetch Pokemon list');
     }

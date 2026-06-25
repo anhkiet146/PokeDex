@@ -1310,3 +1310,184 @@ body {
 ::-webkit-scrollbar-thumb:hover {
     background: #94a3b8;
 }
+
+/* --- Added Trainer Settings, Presets, and Mobile Customizations --- */
+
+/* Avatar presets selection grid */
+.avatar-presets-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    margin-top: 0.5rem;
+}
+
+.avatar-preset-item {
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    padding: 0.6rem 0.4rem;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: #f8fafc;
+    text-align: center;
+}
+
+.avatar-preset-item:hover {
+    transform: translateY(-2px);
+    border-color: #cbd5e1;
+}
+
+.avatar-preset-item.selected {
+    border-color: var(--primary-color);
+    background: var(--primary-light);
+}
+
+.avatar-preset-img {
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-bottom: 0.4rem;
+    border: 2px solid var(--border-color);
+    background-color: #ffffff;
+}
+
+.avatar-preset-item.selected .avatar-preset-img {
+    border-color: var(--primary-color);
+}
+
+.avatar-preset-name {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+}
+
+.avatar-preset-item.selected .avatar-preset-name {
+    color: var(--primary-color);
+}
+
+/* Hover overlay for profile picture */
+.avatar-container {
+    position: relative;
+    width: 90px;
+    height: 90px;
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    border: 2px solid var(--border-color);
+    flex-shrink: 0;
+    background-color: #f8fafc;
+}
+
+.avatar-container .trainer-card-avatar {
+    width: 100% !important;
+    height: 100% !important;
+    border: none !important;
+    margin: 0 !important;
+    display: block;
+}
+
+.avatar-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.15s ease-in-out;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-align: center;
+    padding: 0.2rem;
+}
+
+.avatar-container:hover .avatar-overlay {
+    opacity: 1;
+}
+
+.avatar-overlay i {
+    font-size: 1rem;
+    margin-bottom: 0.2rem;
+}
+
+/* Pokemon selection grid height limitation */
+.pokemon-select-grid {
+    max-height: 250px !important;
+    overflow-y: auto !important;
+}
+
+/* Admin controls */
+.btn-delete-user {
+    background: #fef2f2;
+    color: #ef4444;
+    border: 1px solid #fee2e2;
+    padding: 0.4rem 0.8rem;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.btn-delete-user:hover:not(:disabled) {
+    background: #ef4444;
+    color: #ffffff;
+    border-color: #ef4444;
+}
+
+.btn-delete-user:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Responsive side menu tabs for Mobile / Tablet */
+@media (max-width: 991px) {
+    .trainer-layout {
+        grid-template-columns: 1fr !important;
+        gap: 1.5rem;
+    }
+    
+    .trainer-sidebar-nav {
+        flex-direction: row !important;
+        overflow-x: auto;
+        white-space: nowrap;
+        border-bottom: 2px solid var(--border-color);
+        padding-bottom: 0.4rem;
+        margin-bottom: 0.5rem;
+        gap: 0.5rem;
+        scrollbar-width: none; /* Firefox */
+    }
+    
+    .trainer-sidebar-nav::-webkit-scrollbar {
+        display: none; /* Chrome/Safari */
+    }
+    
+    .trainer-nav-item {
+        border-left: none !important;
+        border-bottom: 3px solid transparent;
+        border-radius: 0 !important;
+        padding: 0.6rem 1rem !important;
+        flex-shrink: 0;
+        margin-top: 0 !important;
+    }
+    
+    .trainer-nav-item.active {
+        border-bottom-color: var(--primary-color) !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        color: var(--primary-color) !important;
+    }
+}
+
