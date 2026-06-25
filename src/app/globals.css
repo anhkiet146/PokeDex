@@ -124,6 +124,9 @@ body {
 }
 
 @media (max-width: 576px) {
+    .app-container {
+        padding: 1.5rem 1rem 3rem;
+    }
     .nav-links {
         gap: 1rem;
     }
@@ -753,39 +756,87 @@ body {
 @media (min-width: 992px) {
     .trainer-layout {
         grid-template-columns: 240px 1fr;
+        align-items: start;
+    }
+
+    .trainer-sidebar-nav {
+        position: sticky;
+        top: 2rem;
+        align-self: start;
+        max-height: calc(100vh - 4rem);
+        overflow-y: auto;
     }
 }
 
 .trainer-sidebar-nav {
     display: flex;
     flex-direction: column;
-    gap: 0.4rem;
+    gap: 0.5rem;
 }
 
 .trainer-nav-item {
-    padding: 0.75rem 1rem;
-    border-radius: 10px;
-    text-decoration: none;
+    padding: 0.8rem 1.2rem;
+    border-radius: 12px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-left: 4px solid transparent;
     color: var(--text-secondary);
-    font-weight: 700;
-    font-size: 0.9rem;
+    font-weight: 600;
+    font-size: 0.95rem;
     display: flex;
     align-items: center;
-    gap: 0.6rem;
-    transition: all 0.15s;
-    border-left: 3px solid transparent;
+    gap: 0.8rem;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+    outline: none;
+}
+
+.trainer-nav-item i {
+    font-size: 1.1rem;
+    width: 20px;
+    text-align: center;
+    transition: transform 0.2s ease;
 }
 
 .trainer-nav-item:hover {
     color: var(--text-primary);
-    background: rgba(255,255,255,0.5);
+    background: rgba(255, 255, 255, 0.6);
+    border-color: rgba(226, 232, 240, 0.8);
+}
+
+.trainer-nav-item:hover i {
+    transform: translateX(2px);
 }
 
 .trainer-nav-item.active {
     color: var(--primary-color);
     background: #ffffff;
-    border-left-color: var(--primary-color);
-    box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+    border: 1px solid var(--border-color);
+    border-left: 4px solid var(--primary-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+    font-weight: 700;
+}
+
+.trainer-nav-item--logout {
+    color: #ef4444;
+    margin-top: 1.5rem;
+}
+
+.trainer-nav-item--logout i {
+    color: #ef4444;
+}
+
+.trainer-nav-item--logout:hover {
+    color: #dc2626;
+    background: #fef2f2;
+    border-color: #fecaca;
+    border-left-color: #ef4444;
+}
+
+.trainer-nav-item--logout:hover i {
+    color: #dc2626;
 }
 
 /* Trainer profile card (Screenshot 2) */
@@ -862,9 +913,15 @@ body {
 
 .vanguard-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
     gap: 1.2rem;
     margin-bottom: 2.5rem;
+}
+
+@media (max-width: 576px) {
+    .vanguard-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 .vanguard-card {
@@ -1499,12 +1556,13 @@ body {
     }
     
     .trainer-nav-item {
-        border-left: none !important;
-        border-bottom: 3px solid transparent;
+        border: none !important;
+        border-bottom: 3px solid transparent !important;
         border-radius: 0 !important;
         padding: 0.6rem 1rem !important;
         flex-shrink: 0;
         margin-top: 0 !important;
+        background: transparent !important;
     }
     
     .trainer-nav-item.active {
@@ -1652,11 +1710,16 @@ body {
     line-height: 1.6;
 }
 
-/* VGC Battle Simulator */
 .sim-layout-wrapper {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 2rem;
+}
+
+@media (max-width: 576px) {
+    .sim-layout-wrapper {
+        grid-template-columns: 1fr;
+    }
 }
 
 .npc-selector-column {

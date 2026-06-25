@@ -26,7 +26,7 @@ const TYPE_TRANSLATIONS = {
 };
 
 const AVATAR_PRESETS = [
-  { name: 'Red', url: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/25.png' }, // Pikachu
+  { name: 'Red', url: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/6.png' }, // Charizard
   { name: 'Ash', url: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/658.png' }, // Greninja
   { name: 'Misty', url: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/121.png' }, // Starmie
   { name: 'Brock', url: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/95.png' }, // Onix
@@ -406,8 +406,20 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
   const [suggestFormat, setSuggestFormat] = useState('single'); // single | double
   const [suggestArchetype, setSuggestArchetype] = useState('balanced'); // balanced | offense | defense
 
-  // Simulator states
-  const [selectedNpc, setSelectedNpc] = useState(NPC_OPPONENTS[0]);
+  // Custom team builder states
+  const [teams, setTeams] = useState([
+    [null, null, null, null, null, null],
+    [null, null, null, null, null, null],
+    [null, null, null, null, null, null]
+  ]);
+  const [activeTeamIdx, setActiveTeamIdx] = useState(0);
+  const [showPokeSelector, setShowPokeSelector] = useState(false);
+  const [activeSlotIdx, setActiveSlotIdx] = useState(null);
+  
+  // AI strategist coach states
+  const [aiReport, setAiReport] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiStep, setAiStep] = useState('');
 
   // Admin settings states
   const [adminTrainers, setAdminTrainers] = useState([]);
@@ -420,12 +432,169 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
 
   const router = useRouter();
   const isAdmin = trainer.username === 'admin' || trainer.role === 'admin';
+
+  // Load saved custom teams from local storage on mount
+  useEffect(() => {
+    const trainerId = trainer.id || trainer._id;
+    if (typeof window !== 'undefined' && trainerId) {
+      const saved = localStorage.getItem(`trainer_teams_${trainerId}`);
+      if (saved) {
+        try {
+          setTeams(JSON.parse(saved));
+        } catch (e) {
+          console.error("Failed to parse trainer teams", e);
+        }
+      }
+    }
+  }, [trainer.id || trainer._id]);
+  
+  const handleSaveTeams = (newTeams) => {
+    setTeams(newTeams);
+    const trainerId = trainer.id || trainer._id;
+    if (typeof window !== 'undefined' && trainerId) {
+      localStorage.setItem(`trainer_teams_${trainerId}`, JSON.stringify(newTeams));
+    }
+    setAiReport(null); // Reset AI report when team changes
+  };
+
+  const handleAddPokemonToSlot = (pokemonId) => {
+    const newTeams = [...teams];
+    newTeams[activeTeamIdx][activeSlotIdx] = pokemonId;
+    handleSaveTeams(newTeams);
+    setShowPokeSelector(false);
+    setActiveSlotIdx(null);
+  };
+
+  const handleRemovePokemonFromSlot = (slotIdx) => {
+    const newTeams = [...teams];
+    newTeams[activeTeamIdx][slotIdx] = null;
+    handleSaveTeams(newTeams);
+  };
+
+  const handleRunAiAnalysis = () => {
+    const activeTeam = teams[activeTeamIdx];
+    const activeTeamPokemon = activeTeam.map(id => allPokemon.find(p => p.id === id)).filter(Boolean);
+    if (activeTeamPokemon.length < 3) {
+      alert("Add at least 3 Pokémon to your team before requesting AI analysis.");
+      return;
+    }
+
+    setAiLoading(true);
+    setAiReport(null);
+    
+    const steps = [
+      "AI Professor Oak is analyzing team type coverage...",
+      "Simulating offensive damage matchups against current VGC meta...",
+      "Evaluating defensive bulk and team element synergy...",
+      "Determining lead pairs and speed control options...",
+      "Finalizing VGC doubles deployment guides..."
+    ];
+    
+    let currentStep = 0;
+    setAiStep(steps[0]);
+    
+    const interval = setInterval(() => {
+      currentStep++;
+      if (currentStep < steps.length) {
+        setAiStep(steps[currentStep]);
+      } else {
+        clearInterval(interval);
+        
+        const primaryTypes = activeTeamPokemon.flatMap(p => p.types);
+        
+        let ace = activeTeamPokemon[0];
+        let maxOffVal = 0;
+        activeTeamPokemon.forEach(p => {
+          const atk = p.stats.find(s => s.name === 'attack')?.value || 60;
+          const spatk = p.stats.find(s => s.name === 'special-attack')?.value || 60;
+          const offVal = Math.max(atk, spatk);
+          if (offVal > maxOffVal) {
+            maxOffVal = offVal;
+            ace = p;
+          }
+        });
+        
+        let leads = [];
+        let backline = [];
+        if (activeTeamPokemon.length >= 4) {
+          const sortedBySpeed = [...activeTeamPokemon].sort((a,b) => {
+            const spA = a.stats.find(s => s.name === 'speed')?.value || 60;
+            const spB = b.stats.find(s => s.name === 'speed')?.value || 60;
+            return spB - spA;
+          });
+          leads = [sortedBySpeed[0], sortedBySpeed[1]];
+          backline = [sortedBySpeed[2], sortedBySpeed[3]];
+        } else {
+          leads = [activeTeamPokemon[0], activeTeamPokemon[1] || activeTeamPokemon[0]];
+          backline = [activeTeamPokemon[2] || activeTeamPokemon[0]];
+        }
+        
+        let opGuide = "";
+        const hasWater = primaryTypes.includes('water');
+        const hasFire = primaryTypes.includes('fire');
+        const hasGrass = primaryTypes.includes('grass');
+        const hasElectric = primaryTypes.includes('electric');
+        const hasFlying = primaryTypes.includes('flying');
+        const hasDragon = primaryTypes.includes('dragon');
+        const hasSteel = primaryTypes.includes('steel');
+        const hasFairy = primaryTypes.includes('fairy');
+        
+        // Determine team archetype and build a competitive guide
+        const offensivePoke = [...activeTeamPokemon].sort((a, b) => {
+          const getOff = p => Math.max(
+            p.stats.find(s => s.name === 'attack')?.value || 0,
+            p.stats.find(s => s.name === 'special-attack')?.value || 0
+          );
+          return getOff(b) - getOff(a);
+        });
+        const bulkyPoke = [...activeTeamPokemon].sort((a, b) => {
+          const getDefBulk = p => (p.stats.find(s => s.name === 'hp')?.value || 0) + (p.stats.find(s => s.name === 'defense')?.value || 0);
+          return getDefBulk(b) - getDefBulk(a);
+        });
+        const fastPoke = [...activeTeamPokemon].sort((a, b) => {
+          return (b.stats.find(s => s.name === 'speed')?.value || 0) - (a.stats.find(s => s.name === 'speed')?.value || 0);
+        });
+        const slowPoke = [...activeTeamPokemon].sort((a, b) => {
+          return (a.stats.find(s => s.name === 'speed')?.value || 0) - (b.stats.find(s => s.name === 'speed')?.value || 0);
+        });
+
+        const avgSpeed = activeTeamPokemon.reduce((acc, p) => acc + (p.stats.find(s => s.name === 'speed')?.value || 60), 0) / activeTeamPokemon.length;
+        const avgHpDef = activeTeamPokemon.reduce((acc, p) => acc + (p.stats.find(s => s.name === 'hp')?.value || 60) + (p.stats.find(s => s.name === 'defense')?.value || 60), 0) / activeTeamPokemon.length;
+        const isTrickRoomCandidate = avgSpeed < 55;
+        const isTailwindCandidate = avgSpeed >= 55 && avgSpeed < 85;
+
+        if (hasFire && hasWater && hasGrass) {
+          opGuide = `Classic Fire-Water-Grass core detected. In VGC Doubles, open with ${leads[0]?.name || 'your lead'} and ${leads[1]?.name || 'your support'} to establish board control. The FWG core provides natural offensive and defensive cycling — switch into your Water-type to absorb Fire attacks, your Grass-type to absorb Water attacks, and your Fire-type to resist Grass-type moves. Use spread moves (e.g. Heat Wave, Surf) to pressure both opponents simultaneously. Protect your ace on turn 1 to scout opponent leads.`;
+        } else if (hasDragon && hasSteel && hasFairy) {
+          opGuide = `Dragon-Steel-Fairy core active ("Fantasy Core"). In VGC, your Steel-type provides Intimidate or redirection support (Follow Me / Rage Powder) to protect your Dragon sweeper. Lead with your Fairy or Steel support to defuse opposing Dragon-type threats. Your Dragon attacker should be brought in mid-game after screens or Tailwind are established. Use your Fairy's immunity to Dragon-type moves as a free switch-in pivot to reset board advantage.`;
+        } else if (isTrickRoomCandidate) {
+          opGuide = `Your team's low average Speed (${Math.round(avgSpeed)}) suits a Trick Room strategy. Lead with your bulkiest slow Pokémon to set Trick Room on Turn 1 while using Protect on your primary attacker to scout. Once Trick Room is active, your slowest members move first — pivot aggressively and use high-power low-PP moves (Close Combat, Draco Meteor) to close games fast. Trick Room typically lasts 5 turns; plan your win condition within that window.`;
+        } else if (isTailwindCandidate) {
+          opGuide = `Your team benefits from Tailwind speed control (avg Speed: ${Math.round(avgSpeed)}). Lead with a Flying-type or fast support Pokémon to establish Tailwind on Turn 1, doubling your team's Speed for 4 turns. With speed advantage secured, your offensive Pokémon (${offensivePoke[0]?.name || 'your attacker'}) can outspeed and KO threats before they move. Coordinate spread moves with your fast attacker to pressure both opponents simultaneously.`;
+        } else {
+          opGuide = `High-speed offensive team (avg Speed: ${Math.round(avgSpeed)}). Prioritize aggressive leads — ${leads[0]?.name || 'your lead'} can outspeed most opponents and apply immediate pressure. Use your fastest Pokémon to control the pace with priority moves or speed tie resolution. Protect on Turn 1 is standard VGC practice to scout opponent moves. Bring your bulkiest Pokémon (${bulkyPoke[0]?.name || 'your support'}) as a pivot to absorb super-effective hits and create safe switches for your primary attacker.`;
+        }
+        
+        setAiReport({
+          ace: ace,
+          leads: leads,
+          backline: backline,
+          opGuide: opGuide
+        });
+        setAiLoading(false);
+      }
+    }, 500);
+  };
   
   const ownedPokemonDetails = allPokemon.filter(p => trainer.ownedPokemon.includes(p.id));
-  const vanguardSquad = ownedPokemonDetails.slice(0, 6);
   const suggestedTeam = getTeamSuggestions(trainer.ownedPokemon, allPokemon, suggestScope === 'all', suggestFormat, suggestArchetype);
-  const synergyReport = analyzeSynergy(vanguardSquad);
-  const battleSimReport = calculateMatchup(vanguardSquad, selectedNpc.team, allPokemon);
+
+  // Compute synergy for the currently active custom team
+  const activeTeamMembers = (teams[activeTeamIdx] || [])
+    .filter(Boolean)
+    .map(id => allPokemon.find(p => p.id === id))
+    .filter(Boolean);
+  const activeTeamSynergy = analyzeSynergy(activeTeamMembers);
 
   // Fetch trainers for Admin
   const fetchAdminTrainers = async () => {
@@ -568,25 +737,18 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
             className={`trainer-nav-item ${activeTab === 'collection' ? 'active' : ''}`}
             onClick={() => setActiveTab('collection')}
           >
-            <i className="fa-solid fa-circle-nodes"></i> My Pokemon
+            <i className="fa-solid fa-layer-group"></i> My Pokemon
           </button>
         )}
 
-        {!isAdmin && (
-          <button 
-            className={`trainer-nav-item ${activeTab === 'simulator' ? 'active' : ''}`}
-            onClick={() => setActiveTab('simulator')}
-          >
-            <i className="fa-solid fa-gamepad"></i> VGC Simulator
-          </button>
-        )}
+
 
         {!isAdmin && (
           <button 
             className={`trainer-nav-item ${activeTab === 'matchups' ? 'active' : ''}`}
             onClick={() => setActiveTab('matchups')}
           >
-            <i className="fa-solid fa-circle-nodes"></i> Type Matchups
+            <i className="fa-solid fa-diagram-project"></i> Type Matchups
           </button>
         )}
         
@@ -609,8 +771,7 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
         )}
         
         <button 
-          className="trainer-nav-item"
-          style={{ color: '#ef4444', marginTop: '1.5rem', background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', width: '100%' }}
+          className="trainer-nav-item trainer-nav-item--logout"
           onClick={handleLogout}
         >
           <i className="fa-solid fa-right-from-bracket"></i> Logout
@@ -620,7 +781,6 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
       {/* 2. Main Content Dashboard */}
       <section>
         
-        {/* TRAINER VIEW TAB */}
         {activeTab === 'profile' && (
           <div>
             
@@ -657,635 +817,792 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
 
             {!isAdmin && (
               <>
-                {/* Vanguard Squad (Screenshot 2) */}
+                {/* 3 Custom Teams Builder */}
                 <div style={{ marginBottom: '2rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem', gap: '1rem' }}>
                     <h3 className="trainer-section-title" style={{ marginBottom: 0 }}>
-                      <i className="fa-solid fa-users"></i> Vanguard Squad
+                      <i className="fa-solid fa-users"></i> Tactical Team Builder
                     </h3>
-                    {ownedPokemonDetails.length > 6 && (
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>First 6 shown</span>
-                    )}
+                    
+                    {/* Team index selectors */}
+                    <div style={{ display: 'flex', background: '#f1f5f9', padding: '0.2rem', borderRadius: '8px' }}>
+                      {[0, 1, 2].map(idx => (
+                        <button 
+                          key={idx}
+                          type="button"
+                          style={{
+                            padding: '0.4rem 0.8rem',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            background: activeTeamIdx === idx ? '#ffffff' : 'transparent',
+                            color: activeTeamIdx === idx ? 'var(--text-primary)' : 'var(--text-secondary)',
+                            boxShadow: activeTeamIdx === idx ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                            transition: 'all 0.15s'
+                          }}
+                          onClick={() => {
+                            setActiveTeamIdx(idx);
+                            setAiReport(null);
+                          }}
+                        >
+                          Team {idx + 1}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
-                  {vanguardSquad.length > 0 ? (
-                    <div className="vanguard-grid">
-                      {vanguardSquad.map(p => {
-                        const transColor = TYPE_TRANSLATIONS[p.types[0]]?.color || '#999';
-                        const lvl = getPokeLevel(p.id);
+                  {/* 3x2 Grid of slots */}
+                  <div className="vanguard-grid">
+                    {teams[activeTeamIdx].map((id, slotIdx) => {
+                      const p = id ? allPokemon.find(item => item.id === id) : null;
+                      if (p) {
                         return (
-                          <div key={p.id} className="vanguard-card">
+                          <div key={slotIdx} className="vanguard-card" style={{ position: 'relative' }}>
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemovePokemonFromSlot(slotIdx);
+                              }}
+                              style={{
+                                position: 'absolute',
+                                top: '10px',
+                                right: '10px',
+                                background: 'rgba(239, 68, 68, 0.1)',
+                                border: 'none',
+                                color: '#ef4444',
+                                width: '24px',
+                                height: '24px',
+                                borderRadius: '50%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                fontSize: '0.8rem',
+                                fontWeight: 'bold',
+                                zIndex: 10
+                              }}
+                              title="Remove Pokémon"
+                            >
+                              <i className="fa-solid fa-xmark"></i>
+                            </button>
                             <div className="vanguard-header">
                               <span className="vanguard-id">#{p.id.toString().padStart(4, '0')}</span>
-                              <span className="vanguard-lvl">Lv. {lvl}</span>
                             </div>
-                            
-                            <div className="vanguard-body">
+                            <div className="vanguard-body" style={{ marginBottom: 0 }}>
                               <img src={p.image} alt={p.name} className="vanguard-img" />
                               <div className="vanguard-info">
                                 <h4 className="vanguard-name">{p.name}</h4>
                                 <div style={{ display: 'flex', gap: '0.3rem' }}>
-                                  {p.types.map(t => {
-                                    const trans = TYPE_TRANSLATIONS[t] || { name: t, color: '#999' };
-                                    return (
-                                      <span key={t} className="type-badge" style={{ backgroundColor: trans.color, fontSize: '0.65rem', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>
-                                        {trans.name}
-                                      </span>
-                                    );
-                                  })}
+                                  {p.types.map(t => (
+                                    <span key={t} className="type-badge" style={{ backgroundColor: TYPE_TRANSLATIONS[t]?.color || '#999', fontSize: '0.65rem', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>
+                                      {TYPE_TRANSLATIONS[t]?.name || t}
+                                    </span>
+                                  ))}
                                 </div>
-                              </div>
-                            </div>
-
-                            <div className="hp-bar-wrapper">
-                              <div className="hp-bar-label">
-                                <span>HP</span>
-                                <span>{lvl * 4} / {lvl * 4}</span>
-                              </div>
-                              <div className="hp-bar-container">
-                                <div className="hp-bar-fill" style={{ width: '100%' }}></div>
                               </div>
                             </div>
                           </div>
                         );
-                      })}
-                    </div>
-                  ) : (
-                    <div style={{ textAlign: 'center', padding: '3rem 1rem', background: '#ffffff', border: '1px dashed var(--border-color)', borderRadius: '16px', marginBottom: '2.5rem' }}>
-                      <i className="fa-solid fa-circle-question" style={{ fontSize: '2.5rem', color: 'var(--text-secondary)', marginBottom: '0.8rem', display: 'block' }}></i>
-                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Your active squad is empty. Add Pokémon from the &quot;My Pokemon&quot; tab.</p>
-                    </div>
-                  )}
+                      } else {
+                        return (
+                          <div 
+                            key={slotIdx} 
+                            onClick={() => {
+                              setActiveSlotIdx(slotIdx);
+                              setShowPokeSelector(true);
+                            }}
+                            style={{
+                              height: '115px',
+                              border: '2px dashed var(--border-color)',
+                              borderRadius: '16px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              color: 'var(--text-secondary)',
+                              background: '#fafafa',
+                              transition: 'all 0.2s',
+                            }}
+                            className="empty-slot-card"
+                          >
+                            <i className="fa-solid fa-plus" style={{ fontSize: '1.5rem', marginBottom: '0.5rem', color: '#cbd5e1' }}></i>
+                            <span style={{ fontSize: '0.75rem', fontWeight: 700 }}>Empty Slot</span>
+                          </div>
+                        );
+                      }
+                    })}
+                  </div>
                 </div>
 
-                {/* VANGUARD SYNERGY ANALYZER SECTION */}
-                {vanguardSquad.length > 0 && synergyReport && (
-                  <div className="collection-table-card" style={{ marginBottom: '2.5rem', borderLeft: '5px solid var(--primary-color)' }}>
+                {/* Team Selector Modal */}
+                {showPokeSelector && (
+                  <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    backgroundColor: 'rgba(0,0,0,0.5)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 1000,
+                    padding: '1rem'
+                  }}>
+                    <div style={{
+                      background: '#ffffff',
+                      borderRadius: '20px',
+                      width: '100%',
+                      maxWidth: '500px',
+                      maxHeight: '80vh',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      padding: '1.5rem',
+                      boxShadow: '0 10px 25px rgba(0,0,0,0.1)'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                        <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0 }}>Add Pokémon to Team {activeTeamIdx + 1} (Slot #{activeSlotIdx + 1})</h3>
+                        <button 
+                          onClick={() => {
+                            setShowPokeSelector(false);
+                            setActiveSlotIdx(null);
+                          }}
+                          style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--text-secondary)' }}
+                        >
+                          <i className="fa-solid fa-xmark"></i>
+                        </button>
+                      </div>
+                      
+                      <div style={{ overflowY: 'auto', flexGrow: 1, paddingRight: '0.5rem' }}>
+                        {ownedPokemonDetails.length > 0 ? (
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '0.8rem' }}>
+                            {ownedPokemonDetails.map(p => {
+                              const isAlreadyInTeam = teams[activeTeamIdx].includes(p.id);
+                              return (
+                                <div 
+                                  key={p.id}
+                                  onClick={() => !isAlreadyInTeam && handleAddPokemonToSlot(p.id)}
+                                  style={{
+                                    padding: '0.8rem',
+                                    border: '1px solid var(--border-color)',
+                                    borderRadius: '12px',
+                                    textAlign: 'center',
+                                    cursor: isAlreadyInTeam ? 'not-allowed' : 'pointer',
+                                    opacity: isAlreadyInTeam ? 0.5 : 1,
+                                    background: isAlreadyInTeam ? '#f8fafc' : '#ffffff',
+                                    transition: 'all 0.15s'
+                                  }}
+                                  className={isAlreadyInTeam ? '' : 'pokemon-select-option'}
+                                >
+                                  <img src={p.image} alt={p.name} style={{ width: '45px', height: '45px', objectFit: 'contain' }} />
+                                  <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'capitalize', display: 'block', marginTop: '0.3rem' }}>{p.name}</span>
+                                  {isAlreadyInTeam && <span style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', display: 'block' }}>In Team</span>}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--text-secondary)' }}>
+                            <p style={{ fontSize: '0.9rem' }}>You don&apos;t own any Pokémon yet.</p>
+                            <button 
+                              onClick={() => {
+                                setShowPokeSelector(false);
+                                setActiveTab('collection');
+                              }}
+                              className="btn-login"
+                              style={{ height: '32px', fontSize: '0.8rem', marginTop: '0.5rem', display: 'inline-flex', alignItems: 'center' }}
+                            >
+                              Go to My Pokémon
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Team Assessment (If active team contains members) */}
+                {teams[activeTeamIdx].filter(Boolean).length > 0 && activeTeamSynergy && (
+                  <div className="collection-table-card" style={{ marginBottom: '2rem', borderLeft: '5px solid var(--primary-color)' }}>
                     <h3 className="trainer-section-title">
-                      <i className="fa-solid fa-circle-nodes" style={{ color: 'var(--primary-color)' }}></i> Vanguard Synergy & Tactical Analyzer
+                      <i className="fa-solid fa-circle-nodes" style={{ color: 'var(--primary-color)' }}></i> Team Synergy Assessment
                     </h3>
                     <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
-                      Calculates tactical core synergies, defensive coverages, and weaknesses in your active squad.
+                      Calculates element core synergies, defensive coverages, and weaknesses in your active team.
                     </p>
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem' }}>
-                      {/* Flex layout for Grades and Radar bar scores */}
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem', alignItems: 'center' }}>
-                        {/* Grade Shield */}
                         <div className="synergy-grade-shield">
                           <span className="grade-title">GRADE</span>
-                          <span className="grade-value">{synergyReport.grade}</span>
+                          <span className="grade-value">{activeTeamSynergy.grade}</span>
                         </div>
  
-                        {/* Stats Breakdown */}
                         <div className="synergy-stats-grid">
                           <div className="synergy-stat-group">
-                            <span className="stat-label">Offense Rating: {synergyReport.stats.offense}%</span>
+                            <span className="stat-label">Offense Rating: {activeTeamSynergy.stats.offense}%</span>
                             <div className="hp-bar-container" style={{ height: '6px', marginTop: '0.25rem' }}>
-                              <div className="hp-bar-fill" style={{ width: `${synergyReport.stats.offense}%`, background: '#ef4444' }}></div>
+                              <div className="hp-bar-fill" style={{ width: `${activeTeamSynergy.stats.offense}%`, background: '#ef4444' }}></div>
                             </div>
                           </div>
                           <div className="synergy-stat-group">
-                            <span className="stat-label">Defense Bulk: {synergyReport.stats.hp}%</span>
+                            <span className="stat-label">Defense Bulk: {activeTeamSynergy.stats.hp}%</span>
                             <div className="hp-bar-container" style={{ height: '6px', marginTop: '0.25rem' }}>
-                              <div className="hp-bar-fill" style={{ width: `${synergyReport.stats.hp}%`, background: '#10b981' }}></div>
+                              <div className="hp-bar-fill" style={{ width: `${activeTeamSynergy.stats.hp}%`, background: '#10b981' }}></div>
                             </div>
                           </div>
                           <div className="synergy-stat-group">
-                            <span className="stat-label">Speed Tier: {synergyReport.stats.speed}%</span>
+                            <span className="stat-label">Speed Tier: {activeTeamSynergy.stats.speed}%</span>
                             <div className="hp-bar-container" style={{ height: '6px', marginTop: '0.25rem' }}>
-                              <div className="hp-bar-fill" style={{ width: `${synergyReport.stats.speed}%`, background: '#6390f0' }}></div>
+                              <div className="hp-bar-fill" style={{ width: `${activeTeamSynergy.stats.speed}%`, background: '#6390f0' }}></div>
                             </div>
                           </div>
                           <div className="synergy-stat-group">
-                            <span className="stat-label">Type Coverage: {synergyReport.stats.coverage}%</span>
+                            <span className="stat-label">Type Coverage: {activeTeamSynergy.stats.coverage}%</span>
                             <div className="hp-bar-container" style={{ height: '6px', marginTop: '0.25rem' }}>
-                              <div className="hp-bar-fill" style={{ width: `${synergyReport.stats.coverage}%`, background: '#f59e0b' }}></div>
+                              <div className="hp-bar-fill" style={{ width: `${activeTeamSynergy.stats.coverage}%`, background: '#f59e0b' }}></div>
                             </div>
                           </div>
                         </div>
                       </div>
  
-                      {/* Pros, Cons, and Warnings lists */}
                       <div className="synergy-feedback-grid">
-                        {/* Pros */}
                         <div className="synergy-feedback-card pros">
                           <h4>
-                            <i className="fa-solid fa-circle-check"></i> Tactical Strengths
+                            <i className="fa-solid fa-circle-check"></i> Strengths
                           </h4>
                           <ul>
-                            {synergyReport.pros.map((p, i) => <li key={i}>{p}</li>)}
+                            {activeTeamSynergy.pros.map((p, i) => <li key={i}>{p}</li>)}
                           </ul>
                         </div>
  
-                        {/* Cons */}
                         <div className="synergy-feedback-card cons">
                           <h4>
-                            <i className="fa-solid fa-triangle-exclamation"></i> Strategy Recommendations
+                            <i className="fa-solid fa-triangle-exclamation"></i> Weaknesses & Risks
                           </h4>
-                          {synergyReport.cons.length > 0 ? (
+                          {activeTeamSynergy.cons.length > 0 || activeTeamSynergy.warnings.length > 0 ? (
                             <ul>
-                              {synergyReport.cons.map((c, i) => <li key={i}>{c}</li>)}
+                              {activeTeamSynergy.cons.map((c, i) => <li key={i}>{c}</li>)}
+                              {activeTeamSynergy.warnings.map((w, i) => <li key={i} style={{ color: '#be185d', fontWeight: 600 }}>{w}</li>)}
                             </ul>
                           ) : (
                             <p style={{ fontSize: '0.75rem', color: '#92400e' }}>No structural flaws detected in core types.</p>
                           )}
                         </div>
  
-                        {/* Warnings */}
                         <div className="synergy-feedback-card warnings">
                           <h4>
-                            <i className="fa-solid fa-circle-radiation"></i> Defensive Weaknesses
+                            <i className="fa-solid fa-screwdriver-wrench"></i> How to Improve
                           </h4>
-                          {synergyReport.warnings.length > 0 ? (
-                            <ul>
-                              {synergyReport.warnings.map((w, i) => <li key={i}>{w}</li>)}
-                            </ul>
-                          ) : (
-                            <p style={{ fontSize: '0.75rem', color: '#166534', fontWeight: 600 }}><i className="fa-solid fa-circle-check"></i> Perfect! No shared triple type weaknesses.</p>
-                          )}
+                          <div style={{ fontSize: '0.75rem', lineHeight: 1.6, color: '#334155' }}>
+                            {(() => {
+                              const activeTeamPokemon = teams[activeTeamIdx].map(id => allPokemon.find(p => p.id === id)).filter(Boolean);
+                              const types = activeTeamPokemon.flatMap(p => p.types);
+                              const hasFire = types.includes('fire');
+                              const hasWater = types.includes('water');
+                              const hasGrass = types.includes('grass');
+                              const hasSteel = types.includes('steel');
+                              const hasDragon = types.includes('dragon');
+                              const hasFairy = types.includes('fairy');
+                              
+                              const recs = [];
+                              
+                              if (!(hasFire && hasWater && hasGrass)) {
+                                const missing = [];
+                                if (!hasFire) missing.push('Fire');
+                                if (!hasWater) missing.push('Water');
+                                if (!hasGrass) missing.push('Grass');
+                                recs.push(`Add a ${missing.join(' or ')} type to complete the Fire-Water-Grass elemental core. This core is a foundational competitive strategy (per Smogon) providing natural offensive and defensive cycling.`);
+                              }
+                              
+                              if (!(hasSteel && hasDragon && hasFairy)) {
+                                const missing = [];
+                                if (!hasSteel) missing.push('Steel');
+                                if (!hasDragon) missing.push('Dragon');
+                                if (!hasFairy) missing.push('Fairy');
+                                recs.push(`Consider adding ${missing.join(' or ')} to activate the Dragon-Steel-Fairy core. This combination gives excellent mutual defensive coverage, with Steel resisting Fairy, Fairy beating Dragon, and Dragon providing raw offensive pressure.`);
+                              }
+                              
+                              activeTeamSynergy.warnings.forEach(w => {
+                                recs.push(`Address shared weakness: ${w} — consider adding a team member that resists this type, or carry a coverage move to deter switch-ins.`);
+                              });
+                              
+                              if (recs.length === 0) {
+                                return <p style={{ color: '#166534', fontWeight: 600, margin: 0 }}><i className="fa-solid fa-circle-check"></i> Your team composition is well-balanced and covers key competitive cores.</p>;
+                              }
+                              
+                              return (
+                                <ul style={{ margin: 0, paddingLeft: '1.1rem' }}>
+                                  {recs.map((r, i) => <li key={i}>{r}</li>)}
+                                </ul>
+                              );
+                            })()}
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
                 )}
 
-                {/* Extended Collection Table (Screenshot 2) */}
-                <div className="collection-table-card">
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                    <h3 className="trainer-section-title" style={{ marginBottom: 0 }}>
-                      <i className="fa-solid fa-boxes-stacked"></i> Extended Collection
-                    </h3>
-                    
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                      <div className="hero-search-wrapper" style={{ margin: 0, maxWidth: '200px' }}>
-                        <input 
-                          type="text" 
-                          className="hero-search-input" 
-                          style={{ height: '36px', fontSize: '0.8rem', borderRadius: '8px', padding: '0 0.8rem' }}
-                          placeholder="Search collection..."
-                          value={collectionSearch}
-                          onChange={(e) => setCollectionSearch(e.target.value)}
-                        />
+                {/* AI Team Strategy Coach */}
+                <div className="collection-table-card" style={{ marginBottom: '2rem' }}>
+                  <h3 className="trainer-section-title" style={{ fontSize: '1.25rem' }}>
+                    <i className="fa-solid fa-brain" style={{ color: 'var(--primary-color)' }}></i> AI Team Strategy Coach
+                  </h3>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
+                    Get expert competitive deployment, operational tips, and ace analysis from our strategic AI engine.
+                  </p>
+
+                  {teams[activeTeamIdx].filter(Boolean).length < 3 ? (
+                    <div style={{ textAlign: 'center', padding: '2.5rem 1rem', background: '#f8fafc', border: '1px dashed var(--border-color)', borderRadius: '16px' }}>
+                      <i className="fa-solid fa-robot" style={{ fontSize: '2.5rem', color: '#cbd5e1', marginBottom: '0.8rem', display: 'block' }}></i>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0 }}>
+                        Add at least 3 Pokémon to your team to enable AI Strategic Analysis.
+                      </p>
+                    </div>
+                  ) : (
+                    <div>
+                      {!aiLoading && !aiReport && (
+                        <div style={{ textAlign: 'center', padding: '1.5rem' }}>
+                          <button 
+                            onClick={handleRunAiAnalysis}
+                            className="btn-login"
+                            style={{ height: '42px', padding: '0 2rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+                          >
+                            <i className="fa-solid fa-microchip"></i> Consult AI Strategy Coach
+                          </button>
+                        </div>
+                      )}
+
+                      {aiLoading && (
+                        <div style={{ textAlign: 'center', padding: '2.5rem', background: 'rgba(255,255,255,0.6)', border: '1px solid var(--border-color)', borderRadius: '16px' }} className="glowing-ai-loading">
+                          <i className="fa-solid fa-circle-notch fa-spin" style={{ fontSize: '2.5rem', color: 'var(--primary-color)', marginBottom: '1rem' }}></i>
+                          <p style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.3rem' }}>{aiStep}</p>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>AI Professor Oak is simulating VGC battle matchups...</span>
+                        </div>
+                      )}
+
+                      {aiReport && (
+                        <div style={{
+                          background: 'rgba(255,255,255,0.8)',
+                          border: '1px solid var(--border-color)',
+                          borderRadius: '16px',
+                          padding: '1.5rem',
+                          boxShadow: '0 4px 20px rgba(99, 144, 240, 0.05)',
+                          position: 'relative',
+                          overflow: 'hidden'
+                        }}>
+                          <div style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '4px',
+                            height: '100%',
+                            background: 'linear-gradient(to bottom, #6390f0, #ec4899)'
+                          }}></div>
+                          
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
+                            <h4 style={{ fontSize: '1rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                              <i className="fa-solid fa-chart-pie" style={{ color: '#6390f0' }}></i> AI Strategic Report
+                            </h4>
+                            <button 
+                              onClick={handleRunAiAnalysis}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: 'var(--primary-color)',
+                                fontWeight: 700,
+                                fontSize: '0.75rem',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Re-analyze
+                            </button>
+                          </div>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.2rem' }}>
+                            {/* Lead & Backline Deployment */}
+                            <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(0,0,0,0.02)' }}>
+                              <h5 style={{ margin: '0 0 0.8rem 0', fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                                <i className="fa-solid fa-users-viewfinder" style={{ color: '#10b981', marginRight: '0.3rem' }}></i> Optimal VGC Lead & Backline
+                              </h5>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem' }}>
+                                <div>
+                                  <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 700, display: 'block', marginBottom: '0.3rem' }}>LEADS:</span>
+                                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                    {aiReport.leads.map((p, idx) => (
+                                      <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', background: '#fff', padding: '0.3rem 0.6rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                                        <img src={p.image} alt={p.name} style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
+                                        <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'capitalize' }}>{p.name}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                                <div>
+                                  <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 700, display: 'block', marginBottom: '0.3rem' }}>BACKLINE:</span>
+                                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                    {aiReport.backline.map((p, idx) => (
+                                      <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', background: '#fff', padding: '0.3rem 0.6rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                                        <img src={p.image} alt={p.name} style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
+                                        <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'capitalize' }}>{p.name}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Carry/Ace */}
+                            <div style={{ background: '#fef3f7', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(236, 72, 153, 0.05)', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                              <div style={{ width: '60px', height: '60px', background: '#fff', borderRadius: '50%', border: '1.5px solid #ec4899', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <img src={aiReport.ace.image} alt={aiReport.ace.name} style={{ width: '50px', height: '50px', objectFit: 'contain' }} />
+                              </div>
+                              <div>
+                                <h5 style={{ margin: '0 0 0.2rem 0', fontSize: '0.85rem', fontWeight: 800, color: '#be185d' }}>
+                                  <i className="fa-solid fa-star" style={{ marginRight: '0.3rem' }}></i> Primary Carry (Ace)
+                                </h5>
+                                <p style={{ margin: 0, fontSize: '0.8rem', color: '#9d174d' }}>
+                                  <strong style={{ textTransform: 'capitalize' }}>{aiReport.ace.name}</strong> has been identified as your ace due to its high offensive stats. Focus on setting up Tailwind or screen support to maximize its damage.
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Operating Guide */}
+                            <div style={{ background: '#f0fdf4', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(22, 163, 74, 0.05)' }}>
+                              <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem', fontWeight: 800, color: '#166534' }}>
+                                <i className="fa-solid fa-route" style={{ marginRight: '0.3rem' }}></i> Competitive Strategy Guide
+                              </h5>
+                              <p style={{ margin: 0, fontSize: '0.8rem', color: '#166534', lineHeight: 1.5 }}>
+                                {aiReport.opGuide}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Smart Team Suggester (Moved to Profile Tab) */}
+                <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid var(--border-color)' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
+                    <div>
+                      <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                        <i className="fa-solid fa-wand-magic-sparkles" style={{ color: 'var(--primary-color)' }}></i> Smart Team Suggester
+                      </h3>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                        Get recommendations for competitive singles or doubles layouts.
+                      </p>
+                    </div>
+
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.8rem' }}>
+                      <div style={{ display: 'flex', background: '#f1f5f9', padding: '0.2rem', borderRadius: '8px' }}>
+                        <button 
+                          type="button"
+                          style={{ 
+                            padding: '0.4rem 0.8rem', 
+                            fontSize: '0.75rem', 
+                            fontWeight: 700, 
+                            border: 'none', 
+                            borderRadius: '6px', 
+                            cursor: 'pointer',
+                            background: suggestScope === 'owned' ? '#ffffff' : 'transparent',
+                            color: suggestScope === 'owned' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                            boxShadow: suggestScope === 'owned' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                          }}
+                          onClick={() => setSuggestScope('owned')}
+                        >
+                          Only My Pokemon
+                        </button>
+                        <button 
+                          type="button"
+                          style={{ 
+                            padding: '0.4rem 0.8rem', 
+                            fontSize: '0.75rem', 
+                            fontWeight: 700, 
+                            border: 'none', 
+                            borderRadius: '6px', 
+                            cursor: 'pointer',
+                            background: suggestScope === 'all' ? '#ffffff' : 'transparent',
+                            color: suggestScope === 'all' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                            boxShadow: suggestScope === 'all' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                          }}
+                          onClick={() => setSuggestScope('all')}
+                        >
+                          Include Unowned
+                        </button>
                       </div>
-                      <button className="filter-btn" style={{ height: '36px', borderRadius: '8px', fontSize: '0.8rem' }} onClick={() => alert('Sorting...')}>
-                        Sort by Level
-                      </button>
+
+                      <div style={{ display: 'flex', background: '#f1f5f9', padding: '0.2rem', borderRadius: '8px' }}>
+                        <button 
+                          type="button"
+                          style={{ 
+                            padding: '0.4rem 0.8rem', 
+                            fontSize: '0.75rem', 
+                            fontWeight: 700, 
+                            border: 'none', 
+                            borderRadius: '6px', 
+                            cursor: 'pointer',
+                            background: suggestFormat === 'single' ? '#ffffff' : 'transparent',
+                            color: suggestFormat === 'single' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                            boxShadow: suggestFormat === 'single' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                          }}
+                          onClick={() => setSuggestFormat('single')}
+                        >
+                          Singles
+                        </button>
+                        <button 
+                          type="button"
+                          style={{ 
+                            padding: '0.4rem 0.8rem', 
+                            fontSize: '0.75rem', 
+                            fontWeight: 700, 
+                            border: 'none', 
+                            borderRadius: '6px', 
+                            cursor: 'pointer',
+                            background: suggestFormat === 'double' ? '#ffffff' : 'transparent',
+                            color: suggestFormat === 'double' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                            boxShadow: suggestFormat === 'double' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                          }}
+                          onClick={() => setSuggestFormat('double')}
+                        >
+                          Doubles (VGC)
+                        </button>
+                      </div>
+
+                      <div style={{ display: 'flex', background: '#f1f5f9', padding: '0.2rem', borderRadius: '8px' }}>
+                        {['balanced', 'offense', 'defense'].map(arch => (
+                          <button 
+                            key={arch}
+                            type="button"
+                            style={{ 
+                              padding: '0.4rem 0.8rem', 
+                              fontSize: '0.75rem', 
+                              fontWeight: 700, 
+                              border: 'none', 
+                              borderRadius: '6px', 
+                              cursor: 'pointer',
+                              background: suggestArchetype === arch ? '#ffffff' : 'transparent',
+                              color: suggestArchetype === arch ? 'var(--text-primary)' : 'var(--text-secondary)',
+                              boxShadow: suggestArchetype === arch ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                              textTransform: 'capitalize'
+                            }}
+                            onClick={() => setSuggestArchetype(arch)}
+                          >
+                            {arch}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
 
-                  {filteredOwnedPokemon.length > 0 ? (
-                    <div className="collection-table-wrapper">
-                      <table className="collection-table">
-                        <thead>
-                          <tr>
-                            <th>#</th>
-                            <th>Pokemon</th>
-                            <th>Type</th>
-                            <th>Level</th>
-                            <th>Base Stats</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {filteredOwnedPokemon.map((p, idx) => {
-                            const lvl = getPokeLevel(p.id);
-                            const statSum = p.id * 3 + 400; // Mock stat total sum
-                            const percent = Math.min((statSum / 700) * 100, 100);
-                            const barColor = idx % 3 === 0 ? '#6390f0' : idx % 3 === 1 ? '#ec4899' : '#10b981'; // blue, pink, green matching screenshot 2
-                            
-                            return (
-                              <tr key={p.id}>
-                                <td style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>#{p.id.toString().padStart(4, '0')}</td>
-                                <td>
-                                  <Link href={`/pokemon/${p.id}`} className="table-pokemon-cell" style={{ textDecoration: 'none', color: 'inherit' }}>
-                                    <img src={p.image} alt={p.name} className="table-pokemon-img" />
-                                    <span className="table-pokemon-name">{p.name}</span>
-                                  </Link>
-                                </td>
-                                <td>
-                                  <div style={{ display: 'flex', gap: '0.2rem' }}>
-                                    {p.types.map(t => {
-                                      const trans = TYPE_TRANSLATIONS[t] || { name: t, color: '#999' };
-                                      return (
-                                        <span key={t} className="type-badge" style={{ backgroundColor: trans.color, fontSize: '0.65rem', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>
-                                          {trans.name}
-                                        </span>
-                                      );
-                                    })}
-                                  </div>
-                                </td>
-                                <td className="table-lvl-cell">{lvl}</td>
-                                <td>
-                                  <div className="table-stats-bar-wrapper">
-                                    <div className="hp-bar-container" style={{ flexGrow: 1, height: '5px' }}>
-                                      <div className="hp-bar-fill" style={{ width: `${percent}%`, backgroundColor: barColor }}></div>
-                                    </div>
-                                    <span className="table-stats-val">{statSum} total</span>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
+                  {suggestedTeam.length > 0 ? (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1.2rem' }}>
+                      {suggestedTeam.map(p => {
+                        const lvl = getPokeLevel(p.id);
+                        return (
+                          <div 
+                            key={p.id} 
+                            className="vanguard-card" 
+                            style={{ 
+                              opacity: p.isOwned ? 1 : 0.75, 
+                              border: p.isOwned ? '1px solid var(--border-color)' : '1px dashed var(--border-color)',
+                              cursor: p.isOwned ? 'pointer' : 'default'
+                            }}
+                            onClick={() => {
+                              if (p.isOwned) {
+                                const emptyIdx = teams[activeTeamIdx].findIndex(id => id === null);
+                                if (emptyIdx !== -1) {
+                                  const newTeams = [...teams];
+                                  newTeams[activeTeamIdx][emptyIdx] = p.id;
+                                  handleSaveTeams(newTeams);
+                                } else {
+                                  alert("Active team is full! Remove a member first.");
+                                }
+                              }
+                            }}
+                          >
+                            <div className="vanguard-header">
+                              <span className="vanguard-id">#{p.id.toString().padStart(4, '0')}</span>
+                              {!p.isOwned && <span style={{ fontSize: '0.65rem', background: '#e2e8f0', color: 'var(--text-secondary)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: 700 }}>Not Owned</span>}
+                            </div>
+                            <div className="vanguard-body">
+                              <img src={p.image} alt={p.name} className="vanguard-img" />
+                              <div className="vanguard-info">
+                                <h4 className="vanguard-name">{p.name}</h4>
+                                <div style={{ display: 'flex', gap: '0.3rem', marginBottom: '0.4rem' }}>
+                                  {p.types.map(t => (
+                                    <span key={t} className="type-badge" style={{ backgroundColor: TYPE_TRANSLATIONS[t]?.color || '#999', fontSize: '0.65rem', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>
+                                      {TYPE_TRANSLATIONS[t]?.name || t}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                            <div 
+                              style={{ 
+                                marginTop: 'auto', 
+                                paddingTop: '0.6rem', 
+                                borderTop: '1px solid var(--border-color)', 
+                                fontSize: '0.72rem', 
+                                fontWeight: 700, 
+                                color: 'var(--text-secondary)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.25rem'
+                              }}
+                            >
+                              <i className={`fa-solid ${p.roleIcon}`}></i>
+                              <span>{p.roleName}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   ) : (
-                    <div style={{ textAlign: 'center', padding: '2rem 1rem', background: '#f8fafc', border: '1px dashed var(--border-color)', borderRadius: '12px' }}>
-                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>No matching Pokémon in collection.</p>
+                    <div style={{ textAlign: 'center', padding: '3rem 1rem', background: '#f8fafc', border: '1px dashed var(--border-color)', borderRadius: '16px' }}>
+                      <i className="fa-solid fa-wand-magic-sparkles" style={{ fontSize: '2rem', color: '#cbd5e1', marginBottom: '0.8rem', display: 'block' }}></i>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                        Add Pokémon to your collection in My Pokémon tab to receive smart team suggestions.
+                      </p>
                     </div>
                   )}
                 </div>
               </>
             )}
-
           </div>
         )}
 
-        {/* MY POKEMON TOGGLE SELECTION TAB */}
+        {/* MY POKEMON TAB */}
         {activeTab === 'collection' && (
-          <div className="profile-section" style={{ background: '#ffffff', border: '1px solid var(--border-color)', borderRadius: '20px', padding: '2rem' }}>
-            <h3 className="profile-section-title" style={{ fontSize: '1.25rem' }}>
-              <i className="fa-solid fa-circle-nodes"></i> Manage Pokémon Collection
-            </h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1.5rem', lineHeight: '1.5' }}>
-              Click on Pokémon to add or remove them from your trainer collection. Changes save automatically.
-            </p>
-
-            <div className="hero-search-wrapper" style={{ margin: '0 0 1.5rem 0', maxWidth: '100%' }}>
-              <div className="hero-input-container">
-                <i className="fa-solid fa-magnifying-glass search-icon"></i>
-                <input 
-                  type="text" 
-                  className="hero-search-input" 
-                  style={{ height: '42px', padding: '0 1rem 0 2.5rem' }}
-                  placeholder="Search Pokémon..."
-                  value={pokeSearch}
-                  onChange={(e) => setPokeSearch(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="pokemon-select-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', padding: '0.8rem' }}>
-              {filteredSearchPokemon.map(p => {
-                const isOwned = trainer.ownedPokemon.includes(p.id);
-                return (
-                  <div 
-                    key={p.id}
-                    className={`pokemon-select-card ${isOwned ? 'selected' : ''}`}
-                    onClick={() => handleTogglePokemon(p.id, isOwned)}
-                    style={{ padding: '0.4rem', border: isOwned ? '2px solid var(--primary-color)' : '1px solid var(--border-color)' }}
-                  >
-                    <img src={p.image} alt={p.name} style={{ width: '40px', height: '40px', objectFit: 'contain' }} />
-                    <span style={{ fontSize: '0.7rem', textTransform: 'capitalize', fontWeight: 700, display: 'block', marginTop: '0.2rem' }}>{p.name}</span>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* SMART TEAM SUGGESTER SECTION */}
-            <div style={{ marginTop: '2.5rem', paddingTop: '2rem', borderTop: '1px solid var(--border-color)' }}>
-              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
+          <div>
+            {/* Section 1: My Owned Pokémon Collection */}
+            <div className="profile-section" style={{ background: '#ffffff', border: '1px solid var(--border-color)', borderRadius: '20px', padding: '2rem', marginBottom: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
                 <div>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                    <i className="fa-solid fa-wand-magic-sparkles" style={{ color: 'var(--primary-color)' }}></i> Smart Team Suggester
+                  <h3 className="profile-section-title" style={{ fontSize: '1.25rem', marginBottom: '0.25rem' }}>
+                    <i className="fa-solid fa-star"></i> My Pokémon Collection
                   </h3>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                    Get recommendations for competitive singles or doubles layouts.
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
+                    {ownedPokemonDetails.length} Pokémon owned
                   </p>
                 </div>
-
-                {/* Controls */}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.8rem' }}>
-                  {/* Pool Filter */}
-                  <div style={{ display: 'flex', background: '#f1f5f9', padding: '0.2rem', borderRadius: '8px' }}>
-                    <button 
-                      type="button"
-                      style={{ 
-                        padding: '0.4rem 0.8rem', 
-                        fontSize: '0.75rem', 
-                        fontWeight: 700, 
-                        border: 'none', 
-                        borderRadius: '6px', 
-                        cursor: 'pointer',
-                        background: suggestScope === 'owned' ? '#ffffff' : 'transparent',
-                        color: suggestScope === 'owned' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                        boxShadow: suggestScope === 'owned' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
-                      }}
-                      onClick={() => setSuggestScope('owned')}
-                    >
-                      Only My Pokemon
-                    </button>
-                    <button 
-                      type="button"
-                      style={{ 
-                        padding: '0.4rem 0.8rem', 
-                        fontSize: '0.75rem', 
-                        fontWeight: 700, 
-                        border: 'none', 
-                        borderRadius: '6px', 
-                        cursor: 'pointer',
-                        background: suggestScope === 'all' ? '#ffffff' : 'transparent',
-                        color: suggestScope === 'all' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                        boxShadow: suggestScope === 'all' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
-                      }}
-                      onClick={() => setSuggestScope('all')}
-                    >
-                      Include Unowned
-                    </button>
-                  </div>
-
-                  {/* Battle Format */}
-                  <div style={{ display: 'flex', background: '#f1f5f9', padding: '0.2rem', borderRadius: '8px' }}>
-                    <button 
-                      type="button"
-                      style={{ 
-                        padding: '0.4rem 0.8rem', 
-                        fontSize: '0.75rem', 
-                        fontWeight: 700, 
-                        border: 'none', 
-                        borderRadius: '6px', 
-                        cursor: 'pointer',
-                        background: suggestFormat === 'single' ? '#ffffff' : 'transparent',
-                        color: suggestFormat === 'single' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                        boxShadow: suggestFormat === 'single' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
-                      }}
-                      onClick={() => setSuggestFormat('single')}
-                    >
-                      Single Battle (6v6)
-                    </button>
-                    <button 
-                      type="button"
-                      style={{ 
-                        padding: '0.4rem 0.8rem', 
-                        fontSize: '0.75rem', 
-                        fontWeight: 700, 
-                        border: 'none', 
-                        borderRadius: '6px', 
-                        cursor: 'pointer',
-                        background: suggestFormat === 'double' ? '#ffffff' : 'transparent',
-                        color: suggestFormat === 'double' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                        boxShadow: suggestFormat === 'double' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
-                      }}
-                      onClick={() => setSuggestFormat('double')}
-                    >
-                      Double Battle
-                    </button>
-                  </div>
-
-                  {/* Team Archetype */}
-                  <div style={{ display: 'flex', background: '#f1f5f9', padding: '0.2rem', borderRadius: '8px' }}>
-                    <button 
-                      type="button"
-                      style={{ 
-                        padding: '0.4rem 0.8rem', 
-                        fontSize: '0.75rem', 
-                        fontWeight: 700, 
-                        border: 'none', 
-                        borderRadius: '6px', 
-                        cursor: 'pointer',
-                        background: suggestArchetype === 'balanced' ? '#ffffff' : 'transparent',
-                        color: suggestArchetype === 'balanced' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                        boxShadow: suggestArchetype === 'balanced' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
-                      }}
-                      onClick={() => setSuggestArchetype('balanced')}
-                    >
-                      Balanced
-                    </button>
-                    <button 
-                      type="button"
-                      style={{ 
-                        padding: '0.4rem 0.8rem', 
-                        fontSize: '0.75rem', 
-                        fontWeight: 700, 
-                        border: 'none', 
-                        borderRadius: '6px', 
-                        cursor: 'pointer',
-                        background: suggestArchetype === 'offense' ? '#ffffff' : 'transparent',
-                        color: suggestArchetype === 'offense' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                        boxShadow: suggestArchetype === 'offense' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
-                      }}
-                      onClick={() => setSuggestArchetype('offense')}
-                    >
-                      Offense
-                    </button>
-                    <button 
-                      type="button"
-                      style={{ 
-                        padding: '0.4rem 0.8rem', 
-                        fontSize: '0.75rem', 
-                        fontWeight: 700, 
-                        border: 'none', 
-                        borderRadius: '6px', 
-                        cursor: 'pointer',
-                        background: suggestArchetype === 'defense' ? '#ffffff' : 'transparent',
-                        color: suggestArchetype === 'defense' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                        boxShadow: suggestArchetype === 'defense' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
-                      }}
-                      onClick={() => setSuggestArchetype('defense')}
-                    >
-                      Defense
-                    </button>
-                  </div>
-                </div>
+                <span style={{ fontSize: '0.8rem', color: 'var(--primary-color)', fontWeight: 700, background: 'var(--primary-light)', padding: '0.4rem 1rem', borderRadius: '20px' }}>
+                  <i className="fa-solid fa-database"></i> {ownedPokemonDetails.length} / 201
+                </span>
               </div>
 
-              {/* Suggestions Grid */}
-              {suggestedTeam.length > 0 ? (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '1rem' }}>
-                  {suggestedTeam.map((p, idx) => {
-                    const primaryType = p.types[0];
-                    const transColor = TYPE_TRANSLATIONS[primaryType]?.color || '#999';
-                    
-                    return (
-                      <div 
-                        key={`${p.id}-${idx}`} 
-                        style={{ 
-                          background: p.isOwned ? '#ffffff' : '#f8fafc', 
-                          border: `1px solid ${p.isOwned ? 'var(--border-color)' : '#e2e8f0'}`,
-                          borderRadius: '16px',
-                          padding: '1rem',
-                          position: 'relative',
+              {ownedPokemonDetails.length > 0 ? (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '1rem' }}>
+                  {ownedPokemonDetails.map(p => (
+                    <div 
+                      key={p.id} 
+                      style={{
+                        background: '#f8fafc',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '16px',
+                        padding: '1rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        position: 'relative',
+                        transition: 'all 0.2s',
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => window.location.href = `/pokemon/${p.id}`}
+                    >
+                      <span style={{ position: 'absolute', top: '0.5rem', left: '0.5rem', fontSize: '0.6rem', color: 'var(--text-secondary)', fontWeight: 700 }}>#{p.id.toString().padStart(3, '0')}</span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleTogglePokemon(p.id, true); }}
+                        title="Release Pokémon"
+                        style={{
+                          position: 'absolute',
+                          top: '0.5rem',
+                          right: '0.5rem',
+                          background: 'rgba(239,68,68,0.1)',
+                          border: 'none',
+                          color: '#ef4444',
+                          width: '22px',
+                          height: '22px',
+                          borderRadius: '50%',
                           display: 'flex',
-                          flexDirection: 'column',
                           alignItems: 'center',
-                          opacity: p.isOwned ? 1 : 0.7,
-                          boxShadow: '0 2px 4px rgba(0,0,0,0.01)',
-                          transition: 'all 0.2s'
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          fontSize: '0.7rem'
                         }}
                       >
-                        {/* Owned / Suggestion badge */}
-                        <span 
-                          style={{ 
-                            position: 'absolute',
-                            top: '0.5rem',
-                            right: '0.5rem',
-                            fontSize: '0.6rem',
-                            padding: '0.15rem 0.4rem',
-                            borderRadius: '4px',
-                            fontWeight: 800,
-                            background: p.isOwned ? '#dcfce7' : '#fee2e2',
-                            color: p.isOwned ? '#15803d' : '#b91c1c'
-                          }}
-                        >
-                          {p.isOwned ? 'Owned' : 'Catch Rec.'}
-                        </span>
-
-                        <img src={p.image} alt={p.name} style={{ width: '60px', height: '60px', objectFit: 'contain', marginBottom: '0.5rem' }} />
-                        
-                        <h4 style={{ fontSize: '0.85rem', fontWeight: 800, textTransform: 'capitalize', color: 'var(--text-primary)', marginBottom: '0.2rem' }}>
-                          {p.name}
-                        </h4>
-
-                        <div style={{ display: 'flex', gap: '0.2rem', marginBottom: '0.6rem' }}>
-                          {p.types.map(t => (
-                            <span 
-                              key={t} 
-                              className="type-badge" 
-                              style={{ 
-                                backgroundColor: TYPE_TRANSLATIONS[t]?.color || '#999', 
-                                fontSize: '0.55rem', 
-                                padding: '0.05rem 0.25rem', 
-                                borderRadius: '3px' 
-                              }}
-                            >
-                              {TYPE_TRANSLATIONS[t]?.name || t}
-                            </span>
-                          ))}
-                        </div>
-
-                        {/* Assigned Role */}
-                        <div 
-                          style={{ 
-                            marginTop: 'auto',
-                            width: '100%',
-                            background: '#f1f5f9',
-                            borderRadius: '8px',
-                            padding: '0.35rem',
-                            fontSize: '0.65rem',
-                            fontWeight: 700,
-                            color: 'var(--text-secondary)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '0.25rem'
-                          }}
-                        >
-                          <i className={`fa-solid ${p.roleIcon}`}></i>
-                          <span>{p.roleName}</span>
-                        </div>
+                        <i className="fa-solid fa-xmark"></i>
+                      </button>
+                      <img src={p.image} alt={p.name} style={{ width: '60px', height: '60px', objectFit: 'contain', marginTop: '0.5rem' }} />
+                      <span style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'capitalize', color: 'var(--text-primary)' }}>{p.name}</span>
+                      <div style={{ display: 'flex', gap: '0.2rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+                        {p.types.map(t => (
+                          <span key={t} className="type-badge" style={{ backgroundColor: TYPE_TRANSLATIONS[t]?.color || '#999', fontSize: '0.55rem', padding: '0.1rem 0.3rem', borderRadius: '4px' }}>
+                            {TYPE_TRANSLATIONS[t]?.name || t}
+                          </span>
+                        ))}
                       </div>
-                    );
-                  })}
+                    </div>
+                  ))}
                 </div>
               ) : (
                 <div style={{ textAlign: 'center', padding: '3rem 1rem', background: '#f8fafc', border: '1px dashed var(--border-color)', borderRadius: '16px' }}>
-                  <i className="fa-solid fa-wand-magic-sparkles" style={{ fontSize: '2rem', color: '#cbd5e1', marginBottom: '0.8rem', display: 'block' }}></i>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                    Add Pokémon to your collection above to receive smart team suggestions.
-                  </p>
+                  <i className="fa-solid fa-circle-plus" style={{ fontSize: '2.5rem', color: '#cbd5e1', marginBottom: '0.8rem', display: 'block' }}></i>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>Your collection is empty.</p>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Use the panel below to add Pokémon.</p>
                 </div>
               )}
             </div>
-          </div>
-        )}
 
-        {/* VGC MATCHUP SIMULATOR TAB */}
-        {activeTab === 'simulator' && (
-          <div className="profile-section" style={{ background: '#ffffff', border: '1px solid var(--border-color)', borderRadius: '20px', padding: '2rem' }}>
-            <h3 className="profile-section-title" style={{ fontSize: '1.25rem' }}>
-              <i className="fa-solid fa-gamepad"></i> VGC Matchup Simulator
-            </h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '2rem' }}>
-              Simulate element coverage battles against famous regional gym leaders and champions.
-            </p>
+            {/* Section 2: Manage / Add Pokémon */}
+            <div className="profile-section" style={{ background: '#ffffff', border: '1px solid var(--border-color)', borderRadius: '20px', padding: '2rem' }}>
+              <h3 className="profile-section-title" style={{ fontSize: '1.25rem' }}>
+                <i className="fa-solid fa-circle-nodes"></i> Manage Collection
+              </h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1.5rem', lineHeight: '1.5' }}>
+                Click on any Pokémon to add or remove it from your collection. Highlighted ones are already owned.
+              </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '2rem' }}>
-              {/* Flex wrapper for NPC selection and match report */}
-              <div className="sim-layout-wrapper">
-                
-                {/* 1. Opponent Selector */}
-                <div>
-                  <h4 style={{ fontSize: '0.95rem', fontWeight: 800, marginBottom: '1rem', color: 'var(--text-primary)' }}>Choose Opponent</h4>
-                  <div className="npc-selector-column">
-                    {NPC_OPPONENTS.map(npc => (
-                      <div 
-                        key={npc.name}
-                        onClick={() => setSelectedNpc(npc)}
-                        className={`npc-selection-card ${selectedNpc.name === npc.name ? 'selected' : ''}`}
-                      >
-                        <img src={npc.avatar} alt={npc.name} className="npc-avatar" />
-                        <div>
-                          <h5 className="npc-name">{npc.name}</h5>
-                          <span className="npc-role">{npc.role}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+              <div className="hero-search-wrapper" style={{ margin: '0 0 1.5rem 0', maxWidth: '100%' }}>
+                <div className="hero-input-container">
+                  <i className="fa-solid fa-magnifying-glass search-icon"></i>
+                  <input 
+                    type="text" 
+                    className="hero-search-input" 
+                    style={{ height: '42px', padding: '0 1rem 0 2.5rem' }}
+                    placeholder="Search Pokémon..."
+                    value={pokeSearch}
+                    onChange={(e) => setPokeSearch(e.target.value)}
+                  />
                 </div>
+              </div>
 
-                {/* 2. Simulation Stats View */}
-                <div className="sim-analysis-report-card">
-                  <h4 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '1.2rem' }}>Simulation Analysis</h4>
-                  
-                  {vanguardSquad.length === 0 ? (
-                    <div style={{ margin: 'auto' }}>
-                      <i className="fa-solid fa-shield-halved" style={{ fontSize: '2.5rem', color: 'var(--text-secondary)', marginBottom: '0.8rem', display: 'block' }}></i>
-                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Add Pokémon to your Vanguard Squad to activate VGC Matchup simulation.</p>
+              <div className="pokemon-select-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', padding: '0.8rem' }}>
+                {filteredSearchPokemon.map(p => {
+                  const isOwned = trainer.ownedPokemon.includes(p.id);
+                  return (
+                    <div 
+                      key={p.id}
+                      className={`pokemon-select-card ${isOwned ? 'selected' : ''}`}
+                      onClick={() => handleTogglePokemon(p.id, isOwned)}
+                      style={{ padding: '0.4rem', border: isOwned ? '2px solid var(--primary-color)' : '1px solid var(--border-color)' }}
+                    >
+                      <img src={p.image} alt={p.name} style={{ width: '40px', height: '40px', objectFit: 'contain' }} />
+                      <span style={{ fontSize: '0.7rem', textTransform: 'capitalize', fontWeight: 700, display: 'block', marginTop: '0.2rem' }}>{p.name}</span>
                     </div>
-                  ) : (
-                    <>
-                      {/* Big Win Chance Gauge */}
-                      <div className="win-rate-dial">
-                        <span className="win-rate-number">{battleSimReport.winRate}%</span>
-                        <span className="win-rate-label">WIN RATE</span>
-                      </div>
-
-                      {/* Tactical advice text */}
-                      <p className="sim-tactical-advice">
-                        &ldquo;{battleSimReport.advice}&rdquo;
-                      </p>
-
-                      {/* Counters and threats list */}
-                      <div className="sim-advantage-list">
-                        {/* Counters */}
-                        <div className="sim-advantage-item counters">
-                          <span className="badge-title"><i className="fa-solid fa-circle-check"></i> Key Counters</span>
-                          {battleSimReport.counters.length > 0 ? (
-                            <div className="sim-badges-container">
-                              {battleSimReport.counters.map((c, i) => (
-                                <span key={i} className="advantage-badge counter">
-                                  {c.user} beats {c.npc}
-                                </span>
-                              ))}
-                            </div>
-                          ) : (
-                            <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>No direct element advantages found.</p>
-                          )}
-                        </div>
-
-                        {/* Threats */}
-                        <div className="sim-advantage-item threats">
-                          <span className="badge-title"><i className="fa-solid fa-circle-exclamation"></i> Serious Threats</span>
-                          {battleSimReport.threats.length > 0 ? (
-                            <div className="sim-badges-container">
-                              {battleSimReport.threats.map((t, i) => (
-                                <span key={i} className="advantage-badge threat">
-                                  {t.user} counters {t.npc}
-                                </span>
-                              ))}
-                            </div>
-                          ) : (
-                            <p style={{ fontSize: '0.75rem', color: '#166534', fontWeight: 600, marginTop: '0.15rem' }}><i className="fa-solid fa-circle-check"></i> Safe! No severe type counters faced.</p>
-                          )}
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
+                  );
+                })}
               </div>
             </div>
           </div>
         )}
+
+
 
         {/* TYPE MATCHUPS TAB */}
         {activeTab === 'matchups' && (

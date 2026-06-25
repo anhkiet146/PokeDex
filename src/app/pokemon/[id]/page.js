@@ -305,6 +305,9 @@ export default async function PokemonDetailPage({ params }) {
                         }}>
                           <img src={evo.image} alt={evo.name} style={{ width: '48px', height: '48px', objectFit: 'contain' }} />
                         </div>
+                        <span style={{ fontSize: '0.65rem', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.1rem' }}>
+                          {idx === 0 ? 'Basic' : idx === 1 ? 'Stage 1' : 'Stage 2'}
+                        </span>
                         <span style={{ fontSize: '0.75rem', fontWeight: '700', textTransform: 'capitalize', display: 'block' }}>
                           {evo.name}
                         </span>
