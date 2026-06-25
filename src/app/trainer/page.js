@@ -55,14 +55,7 @@ export default async function TrainerPage() {
   const pokemon = await getPokemonList();
 
   return (
-    <main className="app-container">
-      <header className="app-header" style={{ padding: '1rem 1rem 2rem' }}>
-        <h1 style={{ fontSize: '2.5rem', fontWeight: '800' }}>
-          Nhà <span>Huấn luyện</span>
-        </h1>
-        <p className="subtitle">Quản lý bộ sưu tập và nhận phân tích chiến thuật</p>
-      </header>
-
+    <main className="app-container" style={{ paddingTop: '2.5rem' }}>
       <TrainerClient initialTrainer={plainTrainer} allPokemon={pokemon} />
     </main>
   );

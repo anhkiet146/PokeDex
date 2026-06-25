@@ -4,11 +4,32 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
+const TYPE_TRANSLATIONS = {
+  normal: { name: 'Thường', color: '#A8A77A' },
+  fire: { name: 'Lửa', color: '#EE8130' },
+  water: { name: 'Nước', color: '#6390F0' },
+  electric: { name: 'Điện', color: '#F7D02C' },
+  grass: { name: 'Cỏ', color: '#7AC74C' },
+  ice: { name: 'Băng', color: '#96D9D6' },
+  fighting: { name: 'Đấu Sĩ', color: '#C22E28' },
+  poison: { name: 'Độc', color: '#A33EA1' },
+  ground: { name: 'Đất', color: '#E2BF65' },
+  flying: { name: 'Bay', color: '#A98FF3' },
+  psychic: { name: 'Siêu Linh', color: '#F95587' },
+  bug: { name: 'Côn Trùng', color: '#A6B91A' },
+  rock: { name: 'Đá', color: '#B6A136' },
+  ghost: { name: 'Ma', color: '#735797' },
+  dragon: { name: 'Rồng', color: '#6F35FC' },
+  steel: { name: 'Thép', color: '#B7B7CE' },
+  fairy: { name: 'Tiên', color: '#D685AD' },
+  dark: { name: 'Bóng Tối', color: '#705746' }
+};
+
 export default function TrainerClient({ initialTrainer, allPokemon }) {
   const [trainer, setTrainer] = useState(initialTrainer);
-  const [activeTab, setActiveTab] = useState('profile'); // profile | collection | team
+  const [activeTab, setActiveTab] = useState('profile'); // profile | collection | settings
   
-  // Profile edit states
+  // Profile edit settings
   const [displayName, setDisplayName] = useState(trainer.displayName);
   const [avatar, setAvatar] = useState(trainer.avatar);
   const [dob, setDob] = useState(trainer.dob ? new Date(trainer.dob).toISOString().split('T')[0] : '');
@@ -16,9 +37,9 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
   const [editError, setEditError] = useState('');
   const [profileLoading, setProfileLoading] = useState(false);
 
-  // Search & add pokemon states
+  // Search collection state
   const [pokeSearch, setPokeSearch] = useState('');
-  const [collectionLoading, setCollectionLoading] = useState(false);
+  const [collectionSearch, setCollectionSearch] = useState('');
 
   const router = useRouter();
 
@@ -66,9 +87,7 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
 
   // Toggle Owned Pokemon
   const handleTogglePokemon = async (pokemonId, isOwned) => {
-    setCollectionLoading(true);
     const action = isOwned ? 'remove' : 'add';
-
     try {
       const res = await fetch('/api/trainer/pokemon', {
         method: 'POST',
@@ -84,406 +103,355 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
       setTrainer(data.trainer);
     } catch (err) {
       alert(err.message);
-    } finally {
-      setCollectionLoading(false);
     }
   };
 
   // Get Owned Pokemon Detailed Objects
   const ownedPokemonDetails = allPokemon.filter(p => trainer.ownedPokemon.includes(p.id));
 
-  // Generate Suggested Team Composition (Rule-based synergy engine)
-  const getTeamRecommendations = () => {
-    if (trainer.ownedPokemon.length === 0) {
-      return {
-        type: 'none',
-        title: 'Chưa có gợi ý',
-        description: 'Hãy thêm Pokémon vào bộ sưu tập của bạn để mở khóa các phân tích đội hình tối ưu!',
-        team: []
-      };
-    }
+  // Filter owned pokemon list for table search
+  const filteredOwnedPokemon = ownedPokemonDetails.filter(p => 
+    p.name.toLowerCase().includes(collectionSearch.toLowerCase()) || 
+    p.id.toString().includes(collectionSearch)
+  );
 
-    const ownedTypes = Array.from(new Set(ownedPokemonDetails.flatMap(p => p.types)));
-    const ownedIds = trainer.ownedPokemon;
-
-    // Helper to find pokemon in Gen 1
-    const findPoke = (id) => allPokemon.find(p => p.id === id);
-
-    // Rule 1: Sun Team Core (Fire presence)
-    if (ownedTypes.includes('fire')) {
-      const core = ownedPokemonDetails.find(p => p.types.includes('fire'));
-      // Synergies: Chlorophyll Grass (Venusaur), Sun setters/attackers (Charizard, Ninetales, Arcanine, Exeggutor)
-      const suggestions = [3, 6, 38, 59, 103, 136]; // Venusaur, Charizard, Ninetales, Arcanine, Exeggutor, Flareon
-      const team = Array.from(new Set([core.id, ...suggestions])).slice(0, 6).map(findPoke).filter(Boolean);
-      return {
-        type: 'sun',
-        title: 'Đội hình Rực Nắng (Sunny Synergy)',
-        description: 'Tận dụng lượng sát thương hệ Lửa khổng lồ. Kết hợp hệ Cỏ (như Venusaur hoặc Exeggutor) để sử dụng đòn Solar Beam bắn ngay lập tức dưới ánh nắng gắt, che chở điểm yếu nước.',
-        team
-      };
-    }
-
-    // Rule 2: Rain Team Core (Water presence)
-    if (ownedTypes.includes('water')) {
-      const core = ownedPokemonDetails.find(p => p.types.includes('water'));
-      // Synergies: Rain Sweepers / Thunder users (Blastoise, Gyarados, Lapras, Jolteon, Dragonite)
-      const suggestions = [9, 130, 131, 135, 149, 55]; // Blastoise, Gyarados, Lapras, Jolteon, Dragonite, Golduck
-      const team = Array.from(new Set([core.id, ...suggestions])).slice(0, 6).map(findPoke).filter(Boolean);
-      return {
-        type: 'rain',
-        title: 'Đội hình Vũ Điệu Mưa (Rain Synergy)',
-        description: 'Mưa lớn giúp tăng sát thương kỹ năng hệ Nước. Jolteon sẽ được hưởng lợi với chiêu Thunder (Sấm Sét) chính xác 100% khi trời mưa. Lapras bổ sung lượng hồi phục tốt.',
-        team
-      };
-    }
-
-    // Rule 3: Electric/Volt Core
-    if (ownedTypes.includes('electric')) {
-      const core = ownedPokemonDetails.find(p => p.id === 25 || p.types.includes('electric'));
-      // Synergies: Volt Core, Ground immunity covers electric weakness (Pikachu/Jolteon, Dugtrio/Nidoking, Gyarados/Zapdos)
-      const suggestions = [26, 135, 51, 34, 130, 145]; // Raichu, Jolteon, Dugtrio, Nidoking, Gyarados, Zapdos
-      const team = Array.from(new Set([core.id, ...suggestions])).slice(0, 6).map(findPoke).filter(Boolean);
-      return {
-        type: 'volt',
-        title: 'Đội hình Bán dẫn Tốc độ (Volt-Turn Core)',
-        description: 'Lực lượng Điện mạnh mẽ khắc chế Thủy và Bay. Nidoking hoặc Dugtrio hệ Đất miễn nhiễm các luồng điện dư thừa và đe dọa các Pokémon hệ đá, tạo bọc lót hoàn hảo.',
-        team
-      };
-    }
-
-    // Fallback: Balanced Core (Fire - Water - Grass core)
-    const suggestions = [3, 6, 9, 25, 143, 65]; // Venusaur, Charizard, Blastoise, Pikachu, Snorlax, Alakazam
-    const team = Array.from(new Set([...ownedIds, ...suggestions])).slice(0, 6).map(findPoke).filter(Boolean);
-    return {
-      type: 'balanced',
-      title: 'Đội hình Cân bằng Truyền thống (F-W-G Core)',
-      description: 'Lõi cốt lõi kết hợp giữa Lửa, Nước và Cỏ tạo thành thế kiềng ba chân tự khắc chế lẫn nhau, bọc lót điểm yếu hệ cực tốt. Thêm Snorlax (Đỡ đòn) và Alakazam (Sát thương phép).',
-      team
-    };
-  };
-
-  const recommendation = getTeamRecommendations();
-
-  // Search filter for list of pokemon to add
+  // Search filter for collection select list
   const filteredSearchPokemon = allPokemon.filter(p => 
     p.name.toLowerCase().includes(pokeSearch.toLowerCase()) || 
     p.id.toString().includes(pokeSearch)
   );
 
+  // Split owned pokemon: First 6 go to active Vanguard Squad, rest in extended collection
+  const vanguardSquad = ownedPokemonDetails.slice(0, 6);
+
+  // Helper to calculate mock level based on pokemon id
+  const getPokeLevel = (id) => {
+    return Math.floor((id * 13) % 41) + 50; // Levels 50 to 90
+  };
+
   return (
-    <main className="app-container">
-      <div className="profile-layout">
+    <div className="trainer-layout">
+      
+      {/* 1. Left Navigation Menu (Screenshot 2) */}
+      <aside className="trainer-sidebar-nav">
+        <button 
+          className={`trainer-nav-item ${activeTab === 'profile' ? 'active' : ''}`}
+          onClick={() => setActiveTab('profile')}
+        >
+          <i className="fa-solid fa-id-card"></i> Trainer Profile
+        </button>
+        <button 
+          className={`trainer-nav-item ${activeTab === 'collection' ? 'active' : ''}`}
+          onClick={() => setActiveTab('collection')}
+        >
+          <i className="fa-solid fa-circle-nodes"></i> My Pokemon
+        </button>
+        <button 
+          className={`trainer-nav-item ${activeTab === 'settings' ? 'active' : ''}`}
+          onClick={() => setActiveTab('settings')}
+        >
+          <i className="fa-solid fa-sliders"></i> Account Settings
+        </button>
         
-        {/* Sidebar details */}
-        <section className="profile-sidebar">
-          <div className="profile-avatar-wrapper">
-            <img src={trainer.avatar} alt={trainer.displayName} className="profile-avatar" />
-          </div>
-          
-          <h2 className="profile-name">{trainer.displayName}</h2>
-          <span className="profile-username">@{trainer.username}</span>
+        <button 
+          className="trainer-nav-item"
+          style={{ color: '#ef4444', marginTop: '1.5rem', background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', width: '100%' }}
+          onClick={handleLogout}
+        >
+          <i className="fa-solid fa-right-from-bracket"></i> Logout
+        </button>
+      </aside>
 
-          <div className="profile-info-list">
-            <div className="profile-info-item">
-              <span className="profile-info-label">Ngày sinh</span>
-              <span className="profile-info-val">
-                {trainer.dob ? new Date(trainer.dob).toLocaleDateString('vi-VN') : 'Chưa cập nhật'}
-              </span>
-            </div>
-            <div className="profile-info-item">
-              <span className="profile-info-label">Gia nhập</span>
-              <span className="profile-info-val">
-                {new Date(trainer.createdAt).toLocaleDateString('vi-VN')}
-              </span>
-            </div>
-            <div className="profile-info-item" style={{ marginBottom: 0 }}>
-              <span className="profile-info-label">Sở hữu</span>
-              <span className="profile-info-val">{trainer.ownedPokemon.length} Pokémon</span>
-            </div>
-          </div>
-
-          {/* Navigation Controls inside profile */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', width: '100%' }}>
-            <button 
-              className={`filter-btn ${activeTab === 'profile' ? 'active' : ''}`}
-              style={{ width: '100%', justifyContent: 'flex-start', border: activeTab === 'profile' ? '1px solid var(--primary-color)' : '1px solid var(--border-color)' }}
-              onClick={() => setActiveTab('profile')}
-            >
-              <i className="fa-solid fa-user-gear"></i> Cấu hình hồ sơ
-            </button>
-            <button 
-              className={`filter-btn ${activeTab === 'collection' ? 'active' : ''}`}
-              style={{ width: '100%', justifyContent: 'flex-start', border: activeTab === 'collection' ? '1px solid var(--primary-color)' : '1px solid var(--border-color)' }}
-              onClick={() => setActiveTab('collection')}
-            >
-              <i className="fa-solid fa-folder-open"></i> Bộ sưu tập Pokémon
-            </button>
-            <button 
-              className={`filter-btn ${activeTab === 'team' ? 'active' : ''}`}
-              style={{ width: '100%', justifyContent: 'flex-start', border: activeTab === 'team' ? '1px solid var(--primary-color)' : '1px solid var(--border-color)' }}
-              onClick={() => setActiveTab('team')}
-            >
-              <i className="fa-solid fa-users-viewfinder"></i> Đội hình gợi ý
-            </button>
+      {/* 2. Main Content Dashboard */}
+      <section>
+        
+        {/* TRAINER VIEW TAB */}
+        {activeTab === 'profile' && (
+          <div>
             
-            <button 
-              className="btn-submit"
-              style={{ background: 'rgba(255, 62, 108, 0.1)', border: '1px solid rgba(255, 62, 108, 0.3)', color: 'var(--primary-color)', marginTop: '1rem', height: '44px' }}
-              onClick={handleLogout}
-            >
-              <i className="fa-solid fa-right-from-bracket"></i> Đăng xuất
-            </button>
-          </div>
-        </section>
-
-        {/* Dynamic content pages based on activeTab */}
-        <section className="profile-content">
-          
-          {/* PROFILE EDIT TAB */}
-          {activeTab === 'profile' && (
-            <div className="profile-section" style={{ background: 'rgba(13, 16, 32, 0.45)' }}>
-              <h3 className="profile-section-title">
-                <i className="fa-solid fa-user-gear"></i> Cập nhật thông tin Nhà huấn luyện
-              </h3>
-
-              {editSuccess && (
-                <div style={{ background: 'rgba(74, 222, 128, 0.1)', border: '1px solid rgba(74, 222, 128, 0.3)', color: '#4ade80', padding: '0.8rem', borderRadius: '12px', fontSize: '0.85rem', marginBottom: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <i className="fa-solid fa-circle-check"></i>
-                  <span>{editSuccess}</span>
+            {/* Trainer Profile Card (Screenshot 2) */}
+            <div className="trainer-profile-card">
+              <img src={trainer.avatar} alt={trainer.displayName} className="trainer-card-avatar" />
+              <div className="trainer-card-details">
+                <h2>{trainer.displayName}</h2>
+                <div style={{ fontSize: '0.85rem', color: 'var(--primary-color)', fontWeight: 800, marginTop: '0.15rem' }}>
+                  ID: #{(trainer.id || '0000').substring(0, 8).toUpperCase()}
                 </div>
-              )}
-
-              {editError && (
-                <div className="form-error" style={{ marginBottom: '1.2rem' }}>
-                  <i className="fa-solid fa-triangle-exclamation"></i>
-                  <span>{editError}</span>
+                <div className="trainer-card-meta">
+                  <span><i className="fa-solid fa-calendar-days"></i> Joined {trainer.createdAt ? new Date(trainer.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) : 'June 2026'}</span>
+                  <span><i className="fa-solid fa-trophy"></i> {Math.floor(trainer.ownedPokemon.length * 1.5)} Badges</span>
+                  <span><i className="fa-solid fa-file-invoice"></i> {trainer.ownedPokemon.length} Entries</span>
                 </div>
-              )}
-
-              <form onSubmit={handleUpdateProfile}>
-                <div className="form-group">
-                  <label htmlFor="editDisplayName">Tên nhà huấn luyện</label>
-                  <input 
-                    type="text" 
-                    id="editDisplayName"
-                    className="form-input"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="editAvatar">URL Ảnh đại diện (Avatar)</label>
-                  <input 
-                    type="url" 
-                    id="editAvatar"
-                    className="form-input"
-                    value={avatar}
-                    onChange={(e) => setAvatar(e.target.value)}
-                    placeholder="Nhập liên kết hình ảnh..."
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="editDob">Ngày sinh (Date of Birth)</label>
-                  <input 
-                    type="date" 
-                    id="editDob"
-                    className="form-input"
-                    value={dob}
-                    onChange={(e) => setDob(e.target.value)}
-                  />
-                </div>
-
-                <button 
-                  type="submit" 
-                  className="btn-submit"
-                  disabled={profileLoading}
-                  style={{ width: 'auto', padding: '0 2rem' }}
-                >
-                  {profileLoading ? 'Đang lưu...' : 'Lưu thay đổi'}
-                </button>
-              </form>
+              </div>
+              <button className="btn-login" style={{ background: '#ffffff', color: 'var(--text-primary)', border: '1px solid var(--border-color)', height: '40px', padding: '0 1.2rem' }} onClick={() => setActiveTab('settings')}>
+                Edit Profile
+              </button>
             </div>
-          )}
 
-          {/* COLLECTION MANAGE TAB */}
-          {activeTab === 'collection' && (
-            <div className="profile-section" style={{ background: 'rgba(13, 16, 32, 0.45)' }}>
-              <h3 className="profile-section-title">
-                <i className="fa-solid fa-folder-open"></i> Quản lý bộ sưu tập Pokémon sở hữu
-              </h3>
-              <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '0.9rem', lineHeight: '1.5' }}>
-                Chọn những Pokémon bạn đang sở hữu ngoài thực tế (hoặc trong game) để hệ thống bắt đầu phân tích và đưa ra gợi ý đội hình chiến thuật ăn ý nhất.
-              </p>
+            {/* Vanguard Squad (Screenshot 2) */}
+            <div style={{ marginBottom: '2rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
+                <h3 className="trainer-section-title" style={{ marginBottom: 0 }}>
+                  <i className="fa-solid fa-users"></i> Vanguard Squad
+                </h3>
+                {ownedPokemonDetails.length > 6 && (
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>First 6 shown</span>
+                )}
+              </div>
 
-              {/* Selector Search */}
-              <div className="search-wrapper" style={{ maxWidth: '100%', marginBottom: '1.5rem', background: 'rgba(0,0,0,0.2)' }}>
+              {vanguardSquad.length > 0 ? (
+                <div className="vanguard-grid">
+                  {vanguardSquad.map(p => {
+                    const primaryType = p.types[0];
+                    const lvl = getPokeLevel(p.id);
+                    return (
+                      <div key={p.id} className="vanguard-card">
+                        <div className="vanguard-header">
+                          <span className="vanguard-id">#{p.id.toString().padStart(4, '0')}</span>
+                          <span className="vanguard-lvl">Lv. {lvl}</span>
+                        </div>
+                        
+                        <div className="vanguard-body">
+                          <img src={p.image} alt={p.name} className="vanguard-img" />
+                          <div className="vanguard-info">
+                            <h4 className="vanguard-name">{p.name}</h4>
+                            <div style={{ display: 'flex', gap: '0.3rem' }}>
+                              {p.types.map(t => {
+                                const trans = TYPE_TRANSLATIONS[t] || { name: t, color: '#999' };
+                                return (
+                                  <span key={t} className="type-badge" style={{ backgroundColor: trans.color, fontSize: '0.65rem', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>
+                                    {trans.name}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="hp-bar-wrapper">
+                          <div className="hp-bar-label">
+                            <span>HP</span>
+                            <span>{lvl * 4} / {lvl * 4}</span>
+                          </div>
+                          <div className="hp-bar-container">
+                            <div className="hp-bar-fill" style={{ width: '100%' }}></div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '3rem 1rem', background: '#ffffff', border: '1px dashed var(--border-color)', borderRadius: '16px', marginBottom: '2.5rem' }}>
+                  <i className="fa-solid fa-circle-question" style={{ fontSize: '2.5rem', color: 'var(--text-secondary)', marginBottom: '0.8rem', display: 'block' }}></i>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Squad của bạn đang trống. Hãy thêm Pokémon trong mục **My Pokemon**.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Extended Collection Table (Screenshot 2) */}
+            <div className="collection-table-card">
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <h3 className="trainer-section-title" style={{ marginBottom: 0 }}>
+                  <i className="fa-solid fa-boxes-stacked"></i> Extended Collection
+                </h3>
+                
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <div className="hero-search-wrapper" style={{ margin: 0, maxWidth: '200px' }}>
+                    <input 
+                      type="text" 
+                      className="hero-search-input" 
+                      style={{ height: '36px', fontSize: '0.8rem', borderRadius: '8px', padding: '0 0.8rem' }}
+                      placeholder="Search collection..."
+                      value={collectionSearch}
+                      onChange={(e) => setCollectionSearch(e.target.value)}
+                    />
+                  </div>
+                  <button className="filter-btn" style={{ height: '36px', borderRadius: '8px', fontSize: '0.8rem' }} onClick={() => alert('Đang tải...')}>
+                    Sort by Level
+                  </button>
+                </div>
+              </div>
+
+              {filteredOwnedPokemon.length > 0 ? (
+                <div className="collection-table-wrapper">
+                  <table className="collection-table">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Pokemon</th>
+                        <th>Type</th>
+                        <th>Level</th>
+                        <th>Base Stats</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredOwnedPokemon.map((p, idx) => {
+                        const lvl = getPokeLevel(p.id);
+                        const statSum = p.id * 3 + 400; // Mock stat total sum
+                        const percent = Math.min((statSum / 700) * 100, 100);
+                        const barColor = idx % 3 === 0 ? '#6390f0' : idx % 3 === 1 ? '#ec4899' : '#10b981'; // blue, pink, green matching screenshot 2
+                        
+                        return (
+                          <tr key={p.id}>
+                            <td style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>#{p.id.toString().padStart(4, '0')}</td>
+                            <td>
+                              <Link href={`/pokemon/${p.id}`} className="table-pokemon-cell" style={{ textDecoration: 'none', color: 'inherit' }}>
+                                <img src={p.image} alt={p.name} className="table-pokemon-img" />
+                                <span className="table-pokemon-name">{p.name}</span>
+                              </Link>
+                            </td>
+                            <td>
+                              <div style={{ display: 'flex', gap: '0.2rem' }}>
+                                {p.types.map(t => {
+                                  const trans = TYPE_TRANSLATIONS[t] || { name: t, color: '#999' };
+                                  return (
+                                    <span key={t} className="type-badge" style={{ backgroundColor: trans.color, fontSize: '0.65rem', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>
+                                      {trans.name}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            </td>
+                            <td className="table-lvl-cell">{lvl}</td>
+                            <td>
+                              <div className="table-stats-bar-wrapper">
+                                <div className="hp-bar-container" style={{ flexGrow: 1, height: '5px' }}>
+                                  <div className="hp-bar-fill" style={{ width: `${percent}%`, backgroundColor: barColor }}></div>
+                                </div>
+                                <span className="table-stats-val">{statSum} total</span>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '2rem 1rem', background: '#f8fafc', border: '1px dashed var(--border-color)', borderRadius: '12px' }}>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Không có Pokémon nào khớp trong bộ sưu tập.</p>
+                </div>
+              )}
+            </div>
+
+          </div>
+        )}
+
+        {/* MY POKEMON TOGGLE SELECTION TAB */}
+        {activeTab === 'collection' && (
+          <div className="profile-section" style={{ background: '#ffffff', border: '1px solid var(--border-color)', borderRadius: '20px', padding: '2rem' }}>
+            <h3 className="profile-section-title" style={{ fontSize: '1.25rem' }}>
+              <i className="fa-solid fa-circle-nodes"></i> Quản lý danh sách Pokémon của bạn
+            </h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1.5rem', lineHeight: '1.5' }}>
+              Nhấp vào các Pokémon dưới đây để thêm hoặc xóa chúng khỏi bộ sưu tập Nhà huấn luyện của bạn. Thay đổi sẽ được cập nhật tự động.
+            </p>
+
+            <div className="hero-search-wrapper" style={{ margin: '0 0 1.5rem 0', maxWidth: '100%' }}>
+              <div className="hero-input-container">
                 <i className="fa-solid fa-magnifying-glass search-icon"></i>
                 <input 
                   type="text" 
-                  placeholder="Tìm Pokémon theo tên hoặc ID cần chọn..." 
+                  className="hero-search-input" 
+                  style={{ height: '42px', padding: '0 1rem 0 2.5rem' }}
+                  placeholder="Tìm Pokémon..."
                   value={pokeSearch}
                   onChange={(e) => setPokeSearch(e.target.value)}
                 />
               </div>
+            </div>
 
-              {/* Selection list */}
-              <div className="pokemon-select-grid">
-                {filteredSearchPokemon.map(p => {
-                  const isOwned = trainer.ownedPokemon.includes(p.id);
-                  return (
-                    <div 
-                      key={p.id}
-                      className={`pokemon-select-card ${isOwned ? 'selected' : ''}`}
-                      onClick={() => handleTogglePokemon(p.id, isOwned)}
-                    >
-                      <img src={p.image} alt={p.name} />
-                      <span style={{ fontSize: '0.8rem', textTransform: 'capitalize', display: 'block', fontWeight: 600 }}>
-                        {p.name}
-                      </span>
-                    </div>
-                  );
-                })}
+            <div className="pokemon-select-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', maxHeight: '420px', background: '#f8fafc', padding: '1rem' }}>
+              {filteredSearchPokemon.map(p => {
+                const isOwned = trainer.ownedPokemon.includes(p.id);
+                return (
+                  <div 
+                    key={p.id}
+                    className={`pokemon-select-card ${isOwned ? 'selected' : ''}`}
+                    onClick={() => handleTogglePokemon(p.id, isOwned)}
+                    style={{ background: '#ffffff', borderRadius: '12px', border: isOwned ? '2px solid var(--primary-color)' : '1px solid var(--border-color)' }}
+                  >
+                    <img src={p.image} alt={p.name} style={{ width: '50px', height: '50px' }} />
+                    <span style={{ fontSize: '0.75rem', textTransform: 'capitalize', fontWeight: 700, display: 'block' }}>{p.name}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ACCOUNT SETTINGS EDIT TAB */}
+        {activeTab === 'settings' && (
+          <div className="profile-section" style={{ background: '#ffffff', border: '1px solid var(--border-color)', borderRadius: '20px', padding: '2rem' }}>
+            <h3 className="profile-section-title" style={{ fontSize: '1.25rem' }}>
+              <i className="fa-solid fa-user-gear"></i> Cấu hình tài khoản Nhà huấn luyện
+            </h3>
+
+            {editSuccess && (
+              <div style={{ background: 'rgba(74, 222, 128, 0.1)', border: '1px solid rgba(74, 222, 128, 0.3)', color: '#4ade80', padding: '0.8rem', borderRadius: '10px', fontSize: '0.85rem', marginBottom: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <i className="fa-solid fa-circle-check"></i>
+                <span>{editSuccess}</span>
+              </div>
+            )}
+
+            {editError && (
+              <div className="form-error" style={{ marginBottom: '1.2rem' }}>
+                <i className="fa-solid fa-triangle-exclamation"></i>
+                <span>{editError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleUpdateProfile}>
+              <div className="form-group">
+                <label htmlFor="editDisplayName">Tên nhà huấn luyện</label>
+                <input 
+                  type="text" 
+                  id="editDisplayName"
+                  className="form-input"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  required
+                />
               </div>
 
-              {/* List of currently owned */}
-              <h4 style={{ fontSize: '1.1rem', fontWeight: 700, margin: '2rem 0 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <i className="fa-solid fa-star" style={{ color: '#f59e0b' }}></i> Pokémon đang sở hữu ({ownedPokemonDetails.length})
-              </h4>
-              
-              {ownedPokemonDetails.length > 0 ? (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: '0.8rem' }}>
-                  {ownedPokemonDetails.map(p => (
-                    <Link 
-                      key={p.id} 
-                      href={`/pokemon/${p.id}`}
-                      style={{
-                        background: 'rgba(255,255,255,0.02)',
-                        border: '1px solid rgba(255,255,255,0.05)',
-                        borderRadius: '16px',
-                        padding: '0.6rem',
-                        textAlign: 'center',
-                        textDecoration: 'none',
-                        color: 'inherit',
-                        display: 'block'
-                      }}
-                    >
-                      <img src={p.image} alt={p.name} style={{ width: '50px', height: '50px', objectFit: 'contain' }} />
-                      <span style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', textTransform: 'capitalize', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {p.name}
-                      </span>
-                    </Link>
-                  ))}
-                </div>
-              ) : (
-                <div style={{ textAlign: 'center', padding: '2rem 1rem', background: 'rgba(255,255,255,0.01)', border: '1px dashed var(--border-color)', borderRadius: '16px' }}>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Bạn chưa thêm Pokémon nào vào bộ sưu tập.</p>
-                </div>
-              )}
-            </div>
-          )}
+              <div className="form-group">
+                <label htmlFor="editAvatar">URL Ảnh đại diện (Avatar)</label>
+                <input 
+                  type="url" 
+                  id="editAvatar"
+                  className="form-input"
+                  value={avatar}
+                  onChange={(e) => setAvatar(e.target.value)}
+                  placeholder="Nhập URL ảnh đại diện..."
+                />
+              </div>
 
-          {/* TEAM RECOMMENDATION TAB */}
-          {activeTab === 'team' && (
-            <div className="profile-section" style={{ background: 'rgba(13, 16, 32, 0.45)' }}>
-              <h3 className="profile-section-title">
-                <i className="fa-solid fa-users-viewfinder"></i> Đội hình gợi ý dựa trên Pokémon sở hữu
-              </h3>
+              <div className="form-group">
+                <label htmlFor="editDob">Ngày tháng năm sinh</label>
+                <input 
+                  type="date" 
+                  id="editDob"
+                  className="form-input"
+                  value={dob}
+                  onChange={(e) => setDob(e.target.value)}
+                />
+              </div>
 
-              {recommendation.type !== 'none' ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                  
-                  {/* Strategy Description */}
-                  <div style={{
-                    background: 'rgba(255, 62, 108, 0.03)',
-                    border: '1px solid rgba(255, 62, 108, 0.1)',
-                    padding: '1.5rem',
-                    borderRadius: '20px'
-                  }}>
-                    <h4 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--primary-color)', marginBottom: '0.5rem' }}>
-                      {recommendation.title}
-                    </h4>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: '1.6' }}>
-                      {recommendation.description}
-                    </p>
-                  </div>
+              <button 
+                type="submit" 
+                className="btn-submit"
+                disabled={profileLoading}
+                style={{ width: 'auto', padding: '0 2rem' }}
+              >
+                {profileLoading ? 'Đang cập nhật...' : 'Lưu thay đổi'}
+              </button>
+            </form>
+          </div>
+        )}
 
-                  {/* Team Grid Visualizer */}
-                  <h4 style={{ fontSize: '1rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-secondary)' }}>
-                    Đội hình chiến đấu tối ưu (6 Pokémon)
-                  </h4>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
-                    {recommendation.team.map((p, idx) => (
-                      <Link 
-                        key={p.id}
-                        href={`/pokemon/${p.id}`}
-                        style={{
-                          background: 'rgba(255,255,255,0.02)',
-                          border: trainer.ownedPokemon.includes(p.id) ? '1px solid rgba(255, 62, 108, 0.25)' : '1px solid rgba(255,255,255,0.05)',
-                          borderRadius: '20px',
-                          padding: '1rem',
-                          textAlign: 'center',
-                          textDecoration: 'none',
-                          color: 'inherit',
-                          position: 'relative'
-                        }}
-                      >
-                        {trainer.ownedPokemon.includes(p.id) && (
-                          <span style={{
-                            position: 'absolute',
-                            top: '8px',
-                            left: '8px',
-                            background: 'rgba(255, 62, 108, 0.15)',
-                            color: 'var(--primary-color)',
-                            fontSize: '0.65rem',
-                            fontWeight: 700,
-                            padding: '0.2rem 0.5rem',
-                            borderRadius: '6px',
-                            textTransform: 'uppercase'
-                          }}>
-                            Bạn sở hữu
-                          </span>
-                        )}
-                        <img src={p.image} alt={p.name} style={{ width: '70px', height: '70px', objectFit: 'contain', margin: '0.5rem auto' }} />
-                        <span style={{ fontSize: '0.9rem', fontWeight: 700, textTransform: 'capitalize', display: 'block' }}>
-                          {p.name}
-                        </span>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginTop: '0.2rem' }}>
-                          Thành viên {idx + 1}
-                        </span>
-                      </Link>
-                    ))}
-                  </div>
-
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', textAlign: 'center', marginTop: '1rem' }}>
-                    * Đội hình được tối ưu hoá theo lý thuyết khắc chế hệ và hiệu ứng thời tiết cơ bản của thế hệ Pokémon đầu tiên.
-                  </p>
-                </div>
-              ) : (
-                <div style={{ textAlign: 'center', padding: '4rem 1rem', background: 'rgba(255,255,255,0.01)', border: '1px dashed var(--border-color)', borderRadius: '20px' }}>
-                  <i className="fa-solid fa-wand-magic-sparkles" style={{ fontSize: '3rem', color: 'var(--text-secondary)', marginBottom: '1.2rem' }}></i>
-                  <h4 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '0.5rem' }}>Đang chờ mở khoá phân tích</h4>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', maxWidth: '380px', margin: '0 auto 1.5rem' }}>
-                    {recommendation.description}
-                  </p>
-                  <button 
-                    className="filter-btn" 
-                    style={{ margin: '0 auto', background: 'var(--primary-color)', color: '#fff', border: 'none' }}
-                    onClick={() => setActiveTab('collection')}
-                  >
-                    Chọn Pokémon ngay
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-        </section>
-
-      </div>
-    </main>
+      </section>
+      
+    </div>
   );
 }
