@@ -19,11 +19,11 @@ export default async function RootLayout({ children }) {
   const trainer = await getSession();
 
   return (
-    <html lang="en" className={`${outfit.variable}`}>
+    <html lang="en" className={`${outfit.variable}`} suppressHydrationWarning>
       <head>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
       </head>
-      <body>
+      <body suppressHydrationWarning>
         <nav className="navbar">
           <div className="nav-container">
             <Link href="/" className="nav-logo">
