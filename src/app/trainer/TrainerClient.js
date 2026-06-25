@@ -26,10 +26,10 @@ const TYPE_TRANSLATIONS = {
 };
 
 const AVATAR_PRESETS = [
-  { name: 'Red', url: 'https://images.unsplash.com/photo-1628157582853-a796fa650a6a?w=150&auto=format&fit=crop&q=60' },
-  { name: 'Ash', url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=60' },
-  { name: 'Misty', url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=60' },
-  { name: 'Brock', url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=60' },
+  { name: 'Red', url: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/25.png' }, // Pikachu
+  { name: 'Ash', url: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/658.png' }, // Greninja
+  { name: 'Misty', url: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/121.png' }, // Starmie
+  { name: 'Brock', url: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/95.png' }, // Onix
   { name: 'Pikachu', url: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/25.png' },
   { name: 'Eevee', url: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/133.png' }
 ];
@@ -37,25 +37,25 @@ const AVATAR_PRESETS = [
 const NPC_OPPONENTS = [
   {
     name: "Champion Red",
-    avatar: "https://images.unsplash.com/photo-1628157582853-a796fa650a6a?w=150&auto=format&fit=crop&q=60",
+    avatar: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/25.png",
     role: "Kanto Champion",
     team: [25, 6, 9, 3, 143, 196] // Pikachu, Charizard, Blastoise, Venusaur, Snorlax, Espeon
   },
   {
     name: "Rival Gary Oak",
-    avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=60",
+    avatar: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/103.png", // Exeggutor
     role: "Elite Rival",
     team: [9, 59, 65, 68, 18, 103] // Blastoise, Arcanine, Alakazam, Machamp, Pidgeot, Exeggutor
   },
   {
     name: "Gym Leader Misty",
-    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=60",
+    avatar: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/121.png",
     role: "Cerulean Leader",
     team: [121, 55, 195, 131, 186, 222] // Starmie, Golduck, Quagsire, Lapras, Politoed, Corsola
   },
   {
     name: "Champion Lance",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=60",
+    avatar: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/149.png", // Dragonite
     role: "Indigo Champion",
     team: [149, 130, 6, 142, 148, 208] // Dragonite, Gyarados, Charizard, Aerodactyl, Dragonair, Steelix
   }
