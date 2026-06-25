@@ -15,6 +15,12 @@ export const metadata = {
   description: 'Explore the magical world of Pokémon with a competitive stats database powered by MongoDB.',
 };
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+};
+
 export default async function RootLayout({ children }) {
   const trainer = await getSession();
 
