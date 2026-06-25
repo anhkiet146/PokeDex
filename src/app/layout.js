@@ -27,6 +27,7 @@ export default async function RootLayout({ children }) {
   return (
     <html lang="en" className={`${outfit.variable}`} suppressHydrationWarning>
       <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
       </head>
       <body suppressHydrationWarning>
@@ -39,13 +40,13 @@ export default async function RootLayout({ children }) {
             
             <div className="nav-links">
               <Link href="/" className="nav-link">
-                <i className="fa-solid fa-house"></i> Home
+                <i className="fa-solid fa-house"></i> <span className="nav-link-text">Home</span>
               </Link>
               
               {trainer ? (
                 <>
                   <Link href="/trainer" className="nav-link">
-                    <i className="fa-solid fa-shield-halved"></i> Trainer
+                    <i className="fa-solid fa-shield-halved"></i> <span className="nav-link-text">Trainer</span>
                   </Link>
                   <Link href="/trainer" className="nav-user" style={{ textDecoration: 'none', color: 'inherit' }}>
                     <img src={trainer.avatar} alt={trainer.displayName} className="nav-avatar" />
