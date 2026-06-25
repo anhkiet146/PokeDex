@@ -16,9 +16,10 @@ export default async function TrainerPage() {
     username: trainer.username,
     displayName: trainer.displayName,
     avatar: trainer.avatar,
-    dob: trainer.dob ? trainer.dob.toISOString() : null,
+    role: trainer.role || 'user',
+    dob: trainer.dob ? (typeof trainer.dob.toISOString === 'function' ? trainer.dob.toISOString() : new Date(trainer.dob).toISOString()) : null,
     ownedPokemon: trainer.ownedPokemon || [],
-    createdAt: trainer.createdAt.toISOString()
+    createdAt: trainer.createdAt ? (typeof trainer.createdAt.toISOString === 'function' ? trainer.createdAt.toISOString() : new Date(trainer.createdAt).toISOString()) : new Date().toISOString()
   };
 
   const pokemon = await getPokemonList();
