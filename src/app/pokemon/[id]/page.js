@@ -88,10 +88,18 @@ export default async function PokemonDetailPage({ params }) {
     const pokemonList = await getPokemonList();
     const cachedPoke = pokemonList.find(p => p.id === pokemonId);
     
+    let speciesIdOrName = pokemonId;
+    if (pokemonId > 10000) {
+      const megaName = cachedPoke ? cachedPoke.name : '';
+      if (megaName.includes('-mega')) {
+        speciesIdOrName = megaName.split('-mega')[0];
+      }
+    }
+
     // Fetch parallel APIs
     const [pokemon, species, session] = await Promise.all([
       cachedPoke ? Promise.resolve(cachedPoke) : getPokemonDetail(pokemonId),
-      getPokemonSpecies(pokemonId),
+      getPokemonSpecies(speciesIdOrName),
       getSession()
     ]);
 

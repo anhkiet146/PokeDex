@@ -1,0 +1,137 @@
+[
+  {
+    "name": "Luca Ceribelli's Worlds 2024 Champion Team",
+    "description": "The winning team from the 2024 VGC World Championships featuring Miraidon as the central restricted powerhouse alongside Whimsicott for speed control and Ogerpon/Urshifu for offensive pressure.",
+    "format": "double",
+    "archetype": "offense",
+    "pokemons": [
+      {"id": 1008, "name": "miraidon", "role": "Restricted Special Attacker / Electric Terrain Setter"},
+      {"id": 892, "name": "urshifu-single-strike", "role": "Unseen Fist Physical Sweeper"},
+      {"id": 981, "name": "farigiraf", "role": "Armor Tail Support / Trick Room Denial"},
+      {"id": 992, "name": "iron-hands", "role": "Assault Vest Bulky Attacker / Fake Out"},
+      {"id": 547, "name": "whimsicott", "role": "Tailwind Support / Prankster Speed Control"},
+      {"id": 1017, "name": "ogerpon", "role": "Ivy Cudgel Physical Attacker"}
+    ],
+    "source": "Victory Road VGC - Worlds 2024"
+  },
+  {
+    "name": "Shohei Kimura's Worlds 2023 Champion Team",
+    "description": "The champion team from the 2023 VGC World Championships utilizing the Chien-Pao + Dragonite physical offensive core combined with Flutter Mane and Amoonguss redirection.",
+    "format": "double",
+    "archetype": "balanced",
+    "pokemons": [
+      {"id": 892, "name": "urshifu-single-strike", "role": "Physical Sweeper / Surging Strikes Core"},
+      {"id": 1002, "name": "chien-pao", "role": "Physical Debuffer / Sword of Ruin"},
+      {"id": 149, "name": "dragonite", "role": "Extreme Speed Physical Sweeper"},
+      {"id": 987, "name": "flutter-mane", "role": "Fast Special Attacker / Fairy STAB"},
+      {"id": 591, "name": "amoonguss", "role": "Redirection / Spore & Rage Powder Support"},
+      {"id": 812, "name": "rillaboom", "role": "Grassy Terrain Setter / Fake Out"}
+    ],
+    "source": "Victory Road VGC - Worlds 2023"
+  },
+  {
+    "name": "Regulation H: Archaludon Rain Balance",
+    "description": "A top-tier Regulation H team that utilizes Pelipper's rain setting to double Basculegion's speed via Swift Swim and charge Archaludon's Electro Shot instantly.",
+    "format": "double",
+    "archetype": "balanced",
+    "pokemons": [
+      {"id": 1018, "name": "archaludon", "role": "Stamina Defense Tank / Rain Attacker"},
+      {"id": 279, "name": "pelipper", "role": "Drizzle Rain Setter / Tailwind Pivot"},
+      {"id": 902, "name": "basculegion-male", "role": "Swift Swim Water Sweeper"},
+      {"id": 591, "name": "amoonguss", "role": "Rage Powder Redirector / Spore Sleep Utility"},
+      {"id": 812, "name": "rillaboom", "role": "Grassy Terrain / Grassy Glide Priority Sweeper"},
+      {"id": 727, "name": "incineroar", "role": "Intimidate Pivot / Fake Out & Parting Shot"}
+    ],
+    "source": "Smogon VGC Reg H Meta"
+  },
+  {
+    "name": "Regulation H: Gholdengo / Sneasler Offense",
+    "description": "An aggressive Regulation H team pairing Gholdengo's Make It Rain with Sneasler's Unburden sweep potential under Grassy Terrain seed triggers.",
+    "format": "double",
+    "archetype": "offense",
+    "pokemons": [
+      {"id": 1000, "name": "gholdengo", "role": "Good as Gold Nasty Plot Special Sweeper"},
+      {"id": 903, "name": "sneasler", "role": "Dire Claw physical Sweeper / Unburden Seed Sweep"},
+      {"id": 812, "name": "rillaboom", "role": "Grassy Terrain Seed Trigger / Fake Out"},
+      {"id": 149, "name": "dragonite", "role": "Multiscale Choice Band Physical Attacker"},
+      {"id": 727, "name": "incineroar", "role": "Intimidate Debuffer / Fake Out Support"},
+      {"id": 730, "name": "primarina", "role": "Assault Vest Special Attacker / Water-Fairy Core"}
+    ],
+    "source": "Smogon VGC Reg H Meta"
+  },
+  {
+    "name": "Regulation H: Bloodmoon Trick Room",
+    "description": "A slow, bulky team centered around setting up Trick Room with Farigiraf to sweep the opponent using Bloodmoon Ursaluna and Torkoal's Eruption in the sun.",
+    "format": "double",
+    "archetype": "defense",
+    "pokemons": [
+      {"id": 901, "name": "ursaluna", "role": "Guts or Bloodmoon Bulky Special Sweeper"},
+      {"id": 981, "name": "farigiraf", "role": "Armor Tail Trick Room Setter / Mental Herb"},
+      {"id": 324, "name": "torkoal", "role": "Drought Sun Setter / Choice Specs Eruption"},
+      {"id": 475, "name": "gallade", "role": "Sharpness Boosted Sacred Sword Attacker"},
+      {"id": 727, "name": "incineroar", "role": "Fake Out & Intimidate Support"},
+      {"id": 983, "name": "kingambit", "role": "Supreme Overlord Late-game Sweeper"}
+    ],
+    "source": "Victory Road VGC - Regulation H"
+  },
+  {
+    "name": "Regulation H: Mausape Beat Up",
+    "description": "A classic strategy pairing Maushold's Beat Up with Annihilape to stack Rage Fist power up to 350BP in a single turn, backed by Archaludon.",
+    "format": "double",
+    "archetype": "offense",
+    "pokemons": [
+      {"id": 925, "name": "maushold-family-of-four", "role": "Friend Guard support / Beat Up Enabler"},
+      {"id": 979, "name": "annihilape", "role": "Defiant Rage Fist Setup Sweeper"},
+      {"id": 812, "name": "rillaboom", "role": "Grassy Terrain / Fake Out Support"},
+      {"id": 727, "name": "incineroar", "role": "Intimidate & Parting Shot Debuffer"},
+      {"id": 35, "name": "clefairy", "role": "Friend Guard Eviolite Redirection Support"},
+      {"id": 1018, "name": "archaludon", "role": "Stamina Electro Shot Heavy Hitter"}
+    ],
+    "source": "Victory Road VGC - Regulation H"
+  },
+  {
+    "name": "Regulation G: Koraidon Sun Hyper Offense",
+    "description": "A high-powered solar-offensive team using Koraidon's Orichalcum Pulse to boost Flutter Mane and Chi-Yu's Fire attacks, supported by Raging Bolt.",
+    "format": "double",
+    "archetype": "offense",
+    "pokemons": [
+      {"id": 1007, "name": "koraidon", "role": "Orichalcum Pulse Sun Setter / Physical Attacker"},
+      {"id": 987, "name": "flutter-mane", "role": "Protosynthesis Boosted Special Attacker"},
+      {"id": 727, "name": "incineroar", "role": "Fake Out / Intimidate / Flare Blitz Pivot"},
+      {"id": 812, "name": "rillaboom", "role": "Fake Out & Grassy Glide Priority Core"},
+      {"id": 1021, "name": "raging-bolt", "role": "Protosynthesis Thunderclap Priority Attacker"},
+      {"id": 1004, "name": "chi-yu", "role": "Beads of Ruin Special Defense Debuffer"}
+    ],
+    "source": "Smogon VGC Reg G Meta"
+  },
+  {
+    "name": "Regulation G: Calyrex Shadow Rider Balance",
+    "description": "A very standard Regulation G balance team that positions Calyrex-Shadow Rider to sweep teams with Astral Barrage, using Incineroar and Rillaboom to clear threats.",
+    "format": "double",
+    "archetype": "balanced",
+    "pokemons": [
+      {"id": 898, "name": "calyrex", "role": "As One Special Sweeper / Astral Barrage"},
+      {"id": 727, "name": "incineroar", "role": "Fake Out & Intimidate Support"},
+      {"id": 812, "name": "rillaboom", "role": "Grassy Terrain Support / Fake Out Pivot"},
+      {"id": 892, "name": "urshifu-single-strike", "role": "Focus Sash physical Sweeper"},
+      {"id": 591, "name": "amoonguss", "role": "Redirection Support / Spore Sleep Control"},
+      {"id": 1021, "name": "raging-bolt", "role": "Assault Vest Bulky Attacker / Speed Control"}
+    ],
+    "source": "Victory Road VGC - Regulation G"
+  },
+  {
+    "name": "Smogon OU: Dragapult / Kingambit Standard",
+    "description": "A staple Smogon 6v6 Singles team built around Dragapult's speed and wall-breaking ability, culminating in a Kingambit sweep in the late-game.",
+    "format": "single",
+    "archetype": "balanced",
+    "pokemons": [
+      {"id": 887, "name": "dragapult", "role": "Mixed Wallbreaker / U-turn Pivot"},
+      {"id": 983, "name": "kingambit", "role": "Late-Game Supreme Overlord Sweeper"},
+      {"id": 984, "name": "great-tusk", "role": "Rapid Spinner / Hazard Setter & Physical Wall"},
+      {"id": 1000, "name": "gholdengo", "role": "Spinblocker / Special Attacker / Good as Gold"},
+      {"id": 1006, "name": "iron-valiant", "role": "Booster Energy Special Sweeper / Calm Mind"},
+      {"id": 823, "name": "corviknight", "role": "Defog Hazard Remover / U-turn Bulky Wall"}
+    ],
+    "source": "Smogon OU Singles Meta"
+  }
+]

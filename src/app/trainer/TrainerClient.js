@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import metaTeams from '@/lib/meta-teams.json';
 
 const TYPE_TRANSLATIONS = {
   normal: { name: 'Normal', color: '#A8A77A' },
@@ -83,109 +84,71 @@ const TYPE_CHART = {
 };
 
 const getTeamSuggestions = (ownedIds, allPkmn, includeUnowned, format, archetype) => {
-  if (ownedIds.length === 0 && !includeUnowned) return [];
-
-  // Candidate pool: only owned vs all
-  let pool = includeUnowned ? allPkmn : allPkmn.filter(p => ownedIds.includes(p.id));
+  let matchingTeams = metaTeams.filter(t => t.format === format && t.archetype === archetype);
   
-  if (pool.length === 0) return [];
-
-  const selected = [];
-  let activeRoles = [];
-
-  if (format === 'single') {
-    if (archetype === 'offense') {
-      activeRoles = [
-        { name: 'Fast Lead', icon: 'fa-gauge-high', check: p => p.types.includes('flying') || p.types.includes('electric') || p.types.includes('fire') },
-        { name: 'Physical Sweeper', icon: 'fa-hand-fist', check: p => p.types.includes('fighting') || p.types.includes('dragon') || p.types.includes('steel') },
-        { name: 'Special Sweeper', icon: 'fa-wand-magic-sparkles', check: p => p.types.includes('fire') || p.types.includes('psychic') || p.types.includes('ghost') },
-        { name: 'Aggressive Pivot', icon: 'fa-rotate', check: p => p.types.includes('electric') || p.types.includes('bug') },
-        { name: 'Wallbreaker', icon: 'fa-burst', check: p => p.types.includes('ground') || p.types.includes('rock') || p.types.includes('dark') },
-        { name: 'Clean-up Sweeper', icon: 'fa-bolt', check: p => true }
-      ];
-    } else if (archetype === 'defense') {
-      activeRoles = [
-        { name: 'Hazard Setter', icon: 'fa-flag', check: p => p.types.includes('rock') || p.types.includes('ground') || p.types.includes('steel') },
-        { name: 'Defensive Wall', icon: 'fa-shield', check: p => p.types.includes('water') || p.types.includes('normal') },
-        { name: 'Special Wall', icon: 'fa-gem', check: p => p.types.includes('normal') || p.types.includes('fairy') || p.types.includes('ice') },
-        { name: 'Cleric / Support', icon: 'fa-heart-pulse', check: p => p.types.includes('fairy') || p.types.includes('grass') },
-        { name: 'Status Inducer', icon: 'fa-skull', check: p => p.types.includes('poison') || p.types.includes('ghost') },
-        { name: 'Stall Utility', icon: 'fa-anchor', check: p => true }
-      ];
-    } else { // balanced
-      activeRoles = [
-        { name: 'Lead / Hazard Setter', icon: 'fa-flag', check: p => p.types.includes('ground') || p.types.includes('rock') || p.types.includes('steel') },
-        { name: 'Physical Sweeper', icon: 'fa-hand-fist', check: p => p.types.includes('fighting') || p.types.includes('dragon') || p.types.includes('bug') || p.types.includes('normal') },
-        { name: 'Special Sweeper', icon: 'fa-wand-magic-sparkles', check: p => p.types.includes('psychic') || p.types.includes('fire') || p.types.includes('electric') || p.types.includes('ghost') },
-        { name: 'Defensive Wall / Tank', icon: 'fa-shield', check: p => p.types.includes('normal') || p.types.includes('water') || p.types.includes('ice') },
-        { name: 'Tactical Support', icon: 'fa-heart', check: p => p.types.includes('poison') || p.types.includes('grass') || p.types.includes('fairy') },
-        { name: 'Versatile Utility', icon: 'fa-screwdriver-wrench', check: p => true }
-      ];
-    }
-  } else { // double VGC
-    if (archetype === 'offense') {
-      activeRoles = [
-        { name: 'Speed / Tailwind', icon: 'fa-wind', check: p => p.types.includes('flying') || p.types.includes('electric') },
-        { name: 'Physical Attacker', icon: 'fa-hand-fist', check: p => p.types.includes('fighting') || p.types.includes('dragon') },
-        { name: 'Special Sweeper', icon: 'fa-wand-magic-sparkles', check: p => p.types.includes('fire') || p.types.includes('psychic') },
-        { name: 'Spread Sweeper', icon: 'fa-burst', check: p => p.types.includes('ground') || p.types.includes('rock') },
-        { name: 'Fast Pivot / Attacker', icon: 'fa-bolt', check: p => p.types.includes('dark') || p.types.includes('bug') },
-        { name: 'Closer Sweeper', icon: 'fa-gauge-high', check: p => true }
-      ];
-    } else if (archetype === 'defense') {
-      activeRoles = [
-        { name: 'Screen Setter', icon: 'fa-shield-halved', check: p => p.types.includes('psychic') || p.types.includes('fairy') },
-        { name: 'Redirection / Support', icon: 'fa-circle-plus', check: p => p.types.includes('grass') || p.types.includes('normal') },
-        { name: 'Bulky Water / Pivot', icon: 'fa-droplet', check: p => p.types.includes('water') },
-        { name: 'Bulky Attacker', icon: 'fa-mountain', check: p => p.types.includes('ground') || p.types.includes('steel') || p.types.includes('ice') },
-        { name: 'Debuffer / Cleric', icon: 'fa-heart', check: p => p.types.includes('poison') },
-        { name: 'Counter Attacker', icon: 'fa-reply', check: p => true }
-      ];
-    } else { // balanced
-      activeRoles = [
-        { name: 'Synergy / Weather', icon: 'fa-cloud-sun-rain', check: p => p.types.includes('water') || p.types.includes('fire') || p.types.includes('rock') },
-        { name: 'Tailwind Support', icon: 'fa-wind', check: p => p.types.includes('flying') || p.types.includes('electric') || p.types.includes('psychic') },
-        { name: 'Physical Attacker', icon: 'fa-hand-fist', check: p => p.types.includes('fighting') || p.types.includes('dragon') || p.types.includes('steel') },
-        { name: 'Special Sweeper', icon: 'fa-wand-magic-sparkles', check: p => p.types.includes('ghost') || p.types.includes('fire') || p.types.includes('ice') },
-        { name: 'Redirection / Support', icon: 'fa-circle-plus', check: p => p.types.includes('fairy') || p.types.includes('grass') || p.types.includes('poison') },
-        { name: 'Closer Sweeper', icon: 'fa-bolt', check: p => true }
-      ];
-    }
+  if (matchingTeams.length === 0) {
+    matchingTeams = metaTeams.filter(t => t.format === format);
+  }
+  
+  if (matchingTeams.length === 0) {
+    return null;
   }
 
-  const usedIds = new Set();
-  
-  for (let i = 0; i < 6; i++) {
-    const role = activeRoles[i];
-    let match = pool.find(p => !usedIds.has(p.id) && role.check(p));
+  let selectedTeam = matchingTeams[0];
+
+  if (!includeUnowned && ownedIds.length > 0) {
+    let bestTeam = matchingTeams[0];
+    let maxOwnedCount = -1;
     
-    if (!match) {
-      match = pool.find(p => !usedIds.has(p.id));
-    }
-    
-    if (match) {
-      selected.push({
-        ...match,
-        roleName: role.name,
-        roleIcon: role.icon,
-        isOwned: ownedIds.includes(match.id)
-      });
-      usedIds.add(match.id);
-    } else if (includeUnowned) {
-      const backup = allPkmn.find(p => !usedIds.has(p.id));
-      if (backup) {
-        selected.push({
-          ...backup,
-          roleName: role.name,
-          roleIcon: role.icon,
-          isOwned: false
-        });
-        usedIds.add(backup.id);
+    for (const team of matchingTeams) {
+      const ownedCount = team.pokemons.filter(p => ownedIds.includes(p.id)).length;
+      if (ownedCount > maxOwnedCount) {
+        maxOwnedCount = ownedCount;
+        bestTeam = team;
       }
     }
+    selectedTeam = bestTeam;
   }
 
-  return selected;
+  const getRoleIcon = (role) => {
+    const r = role.toLowerCase();
+    if (r.includes('tailwind') || r.includes('speed') || r.includes('pivot')) return 'fa-wind';
+    if (r.includes('special') || r.includes('magic') || r.includes('special attacker')) return 'fa-wand-magic-sparkles';
+    if (r.includes('physical') || r.includes('sweeper') || r.includes('attacker') || r.includes('strike')) return 'fa-hand-fist';
+    if (r.includes('trick room') || r.includes('support') || r.includes('redirect') || r.includes('defensive') || r.includes('preventer') || r.includes('denial') || r.includes('redirector')) return 'fa-shield-halved';
+    if (r.includes('weather') || r.includes('sun') || r.includes('rain') || r.includes('terrain') || r.includes('drizzle')) return 'fa-cloud-sun-rain';
+    return 'fa-circle-nodes';
+  };
+
+  const detailedPokemons = selectedTeam.pokemons.map(tp => {
+    const found = allPkmn.find(p => p.id === tp.id);
+    if (found) {
+      return {
+        ...found,
+        roleName: tp.role,
+        roleIcon: getRoleIcon(tp.role),
+        isOwned: ownedIds.includes(tp.id)
+      };
+    } else {
+      return {
+        id: tp.id,
+        name: tp.name,
+        image: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${tp.id}.png`,
+        types: ['normal'],
+        stats: [],
+        roleName: tp.role,
+        roleIcon: getRoleIcon(tp.role),
+        isOwned: ownedIds.includes(tp.id)
+      };
+    }
+  });
+
+  return {
+    teamName: selectedTeam.name,
+    description: selectedTeam.description,
+    source: selectedTeam.source,
+    pokemons: detailedPokemons
+  };
 };
 
 const analyzeSynergy = (squad) => {
@@ -587,7 +550,8 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
   };
   
   const ownedPokemonDetails = allPokemon.filter(p => trainer.ownedPokemon.includes(p.id));
-  const suggestedTeam = getTeamSuggestions(trainer.ownedPokemon, allPokemon, suggestScope === 'all', suggestFormat, suggestArchetype);
+  const suggestionResult = getTeamSuggestions(trainer.ownedPokemon, allPokemon, suggestScope === 'all', suggestFormat, suggestArchetype);
+  const suggestedTeam = suggestionResult ? suggestionResult.pokemons : [];
 
   // Compute synergy for the currently active custom team
   const activeTeamMembers = (teams[activeTeamIdx] || [])
@@ -1398,6 +1362,20 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
                       </div>
                     </div>
                   </div>
+
+                  {suggestedTeam.length > 0 && (
+                    <div className="collection-table-card" style={{ marginBottom: '1.5rem', padding: '1.2rem', borderLeft: '5px solid var(--primary-color)' }}>
+                      <h4 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-primary)', fontWeight: 800 }}>
+                        {suggestionResult.teamName}
+                      </h4>
+                      <p style={{ margin: '0.4rem 0 0.6rem 0', fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+                        {suggestionResult.description}
+                      </p>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--primary-color)', fontWeight: 700 }}>
+                        <i className="fa-solid fa-square-rss" style={{ marginRight: '0.3rem' }}></i>Source: {suggestionResult.source}
+                      </span>
+                    </div>
+                  )}
 
                   {suggestedTeam.length > 0 ? (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1.2rem' }}>
