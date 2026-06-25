@@ -34,6 +34,54 @@ const AVATAR_PRESETS = [
   { name: 'Eevee', url: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/133.png' }
 ];
 
+const NPC_OPPONENTS = [
+  {
+    name: "Champion Red",
+    avatar: "https://images.unsplash.com/photo-1628157582853-a796fa650a6a?w=150&auto=format&fit=crop&q=60",
+    role: "Kanto Champion",
+    team: [25, 6, 9, 3, 143, 196] // Pikachu, Charizard, Blastoise, Venusaur, Snorlax, Espeon
+  },
+  {
+    name: "Rival Gary Oak",
+    avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=60",
+    role: "Elite Rival",
+    team: [9, 59, 65, 68, 18, 103] // Blastoise, Arcanine, Alakazam, Machamp, Pidgeot, Exeggutor
+  },
+  {
+    name: "Gym Leader Misty",
+    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=60",
+    role: "Cerulean Leader",
+    team: [121, 55, 195, 131, 186, 222] // Starmie, Golduck, Quagsire, Lapras, Politoed, Corsola
+  },
+  {
+    name: "Champion Lance",
+    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=60",
+    role: "Indigo Champion",
+    team: [149, 130, 6, 142, 148, 208] // Dragonite, Gyarados, Charizard, Aerodactyl, Dragonair, Steelix
+  }
+];
+
+const TYPE_CHART = {
+  normal: { normal: 1, fire: 1, water: 1, electric: 1, grass: 1, ice: 1, fighting: 1, poison: 1, ground: 1, flying: 1, psychic: 1, bug: 1, rock: 0.5, ghost: 0, dragon: 1, steel: 0.5, fairy: 1, dark: 1 },
+  fire: { normal: 1, fire: 0.5, water: 0.5, electric: 1, grass: 2, ice: 2, fighting: 1, poison: 1, ground: 1, flying: 1, psychic: 1, bug: 2, rock: 0.5, ghost: 1, dragon: 0.5, steel: 2, fairy: 1, dark: 1 },
+  water: { normal: 1, fire: 2, water: 0.5, electric: 1, grass: 0.5, ice: 1, fighting: 1, poison: 1, ground: 2, flying: 1, psychic: 1, bug: 1, rock: 2, ghost: 1, dragon: 0.5, steel: 1, fairy: 1, dark: 1 },
+  electric: { normal: 1, fire: 1, water: 2, electric: 0.5, grass: 0.5, ice: 1, fighting: 1, poison: 1, ground: 0, flying: 2, psychic: 1, bug: 1, rock: 1, ghost: 1, dragon: 0.5, steel: 1, fairy: 1, dark: 1 },
+  grass: { normal: 1, fire: 0.5, water: 2, electric: 1, grass: 0.5, ice: 1, fighting: 1, poison: 0.5, ground: 2, flying: 0.5, psychic: 0.5, bug: 0.5, rock: 2, ghost: 1, dragon: 0.5, steel: 0.5, fairy: 1, dark: 1 },
+  ice: { normal: 1, fire: 0.5, water: 0.5, electric: 1, grass: 2, ice: 0.5, fighting: 1, poison: 1, ground: 2, flying: 2, psychic: 1, bug: 1, rock: 1, ghost: 1, dragon: 2, steel: 0.5, fairy: 1, dark: 1 },
+  fighting: { normal: 2, fire: 1, water: 1, electric: 1, grass: 1, ice: 2, fighting: 1, poison: 0.5, ground: 1, flying: 0.5, psychic: 0.5, bug: 0.5, rock: 2, ghost: 0, dragon: 1, steel: 2, fairy: 0.5, dark: 2 },
+  poison: { normal: 1, fire: 1, water: 1, electric: 1, grass: 2, ice: 1, fighting: 1, poison: 0.5, ground: 0.5, flying: 1, psychic: 1, bug: 1, rock: 0.5, ghost: 0.5, dragon: 1, steel: 0, fairy: 2, dark: 1 },
+  ground: { normal: 1, fire: 2, water: 1, electric: 2, grass: 0.5, ice: 1, fighting: 1, poison: 2, ground: 1, flying: 0, psychic: 1, bug: 0.5, rock: 2, ghost: 1, dragon: 2, steel: 2, fairy: 1, dark: 1 },
+  flying: { normal: 1, fire: 1, water: 1, electric: 0.5, grass: 2, ice: 1, fighting: 2, poison: 1, ground: 1, flying: 1, psychic: 1, bug: 2, rock: 0.5, ghost: 1, dragon: 1, steel: 0.5, fairy: 1, dark: 1 },
+  psychic: { normal: 1, fire: 1, water: 1, electric: 1, grass: 1, ice: 1, fighting: 2, poison: 2, ground: 1, flying: 1, psychic: 0.5, bug: 1, rock: 1, ghost: 1, dragon: 1, steel: 0.5, fairy: 1, dark: 0 },
+  bug: { normal: 1, fire: 0.5, water: 1, electric: 1, grass: 2, ice: 1, fighting: 0.5, poison: 0.5, ground: 1, flying: 0.5, psychic: 2, bug: 1, rock: 1, ghost: 0.5, dragon: 1, steel: 0.5, fairy: 0.5, dark: 2 },
+  rock: { normal: 1, fire: 2, water: 1, electric: 1, grass: 1, ice: 2, fighting: 0.5, poison: 1, ground: 0.5, flying: 2, psychic: 1, bug: 2, rock: 1, ghost: 1, dragon: 1, steel: 0.5, fairy: 1, dark: 1 },
+  ghost: { normal: 0, fire: 1, water: 1, electric: 1, grass: 1, ice: 1, fighting: 1, poison: 1, ground: 1, flying: 1, psychic: 2, bug: 1, rock: 1, ghost: 2, dragon: 1, steel: 1, fairy: 1, dark: 0.5 },
+  dragon: { normal: 1, fire: 1, water: 1, electric: 1, grass: 1, ice: 1, fighting: 1, poison: 1, ground: 1, flying: 1, psychic: 1, bug: 1, rock: 1, ghost: 1, dragon: 2, steel: 0.5, fairy: 0, dark: 1 },
+  steel: { normal: 1, fire: 0.5, water: 0.5, electric: 0.5, grass: 1, ice: 2, fighting: 1, poison: 1, ground: 1, flying: 1, psychic: 1, bug: 1, rock: 2, ghost: 1, dragon: 1, steel: 0.5, fairy: 2, dark: 1 },
+  fairy: { normal: 1, fire: 0.5, water: 1, electric: 1, grass: 1, ice: 1, fighting: 2, poison: 0.5, ground: 1, flying: 1, psychic: 1, bug: 1, rock: 1, ghost: 1, dragon: 2, steel: 0.5, fairy: 1, dark: 2 },
+  dark: { normal: 1, fire: 1, water: 1, electric: 1, grass: 1, ice: 1, fighting: 0.5, poison: 1, ground: 1, flying: 1, psychic: 2, bug: 1, rock: 1, ghost: 2, dragon: 1, steel: 1, fairy: 0.5, dark: 0.5 }
+};
+
 const getTeamSuggestions = (ownedIds, allPkmn, includeUnowned, format, archetype) => {
   if (ownedIds.length === 0 && !includeUnowned) return [];
 
@@ -43,8 +91,6 @@ const getTeamSuggestions = (ownedIds, allPkmn, includeUnowned, format, archetype
   if (pool.length === 0) return [];
 
   const selected = [];
-  
-  // Custom roles for different battle formats and team archetypes
   let activeRoles = [];
 
   if (format === 'single') {
@@ -142,9 +188,206 @@ const getTeamSuggestions = (ownedIds, allPkmn, includeUnowned, format, archetype
   return selected;
 };
 
+const analyzeSynergy = (squad) => {
+  if (squad.length === 0) return null;
+  
+  let score = 50;
+  const pros = [];
+  const cons = [];
+  const warnings = [];
+  
+  const types = squad.flatMap(p => p.types);
+  const uniqueTypes = new Set(types);
+  
+  if (uniqueTypes.size >= 8) {
+    score += 15;
+    pros.push("Excellent type coverage (8+ unique types).");
+  } else if (uniqueTypes.size >= 5) {
+    score += 8;
+    pros.push("Good type coverage.");
+  } else {
+    score -= 10;
+    cons.push("Poor type coverage. Try adding diverse types.");
+  }
+  
+  const hasFire = types.includes('fire');
+  const hasWater = types.includes('water');
+  const hasGrass = types.includes('grass');
+  if (hasFire && hasWater && hasGrass) {
+    score += 12;
+    pros.push("Elemental Fire-Water-Grass Core active!");
+  } else {
+    const missing = [];
+    if (!hasFire) missing.push("Fire");
+    if (!hasWater) missing.push("Water");
+    if (!hasGrass) missing.push("Grass");
+    cons.push(`Missing elemental core. Consider: ${missing.join(', ')}.`);
+  }
+
+  const hasSteel = types.includes('steel');
+  const hasDragon = types.includes('dragon');
+  const hasFairy = types.includes('fairy');
+  if (hasSteel && hasDragon && hasFairy) {
+    score += 12;
+    pros.push("Fantasy Core (Dragon-Fairy-Steel) active!");
+  }
+
+  const weaknesses = {};
+  const typeWeaknessChart = {
+    fire: ['water', 'ground', 'rock'],
+    water: ['electric', 'grass'],
+    grass: ['fire', 'ice', 'poison', 'flying', 'bug'],
+    electric: ['ground'],
+    normal: ['fighting'],
+    ice: ['fire', 'fighting', 'rock', 'steel'],
+    fighting: ['flying', 'psychic', 'fairy'],
+    poison: ['ground', 'psychic'],
+    ground: ['water', 'grass', 'ice'],
+    flying: ['electric', 'ice', 'rock'],
+    psychic: ['bug', 'ghost', 'dark'],
+    bug: ['fire', 'flying', 'rock'],
+    rock: ['water', 'grass', 'fighting', 'ground', 'steel'],
+    ghost: ['ghost', 'dark'],
+    dragon: ['ice', 'dragon', 'fairy'],
+    steel: ['fire', 'fighting', 'ground'],
+    fairy: ['poison', 'steel'],
+    dark: ['fighting', 'bug', 'fairy']
+  };
+
+  squad.forEach(p => {
+    p.types.forEach(t => {
+      const weakList = typeWeaknessChart[t] || [];
+      weakList.forEach(w => {
+        weaknesses[w] = (weaknesses[w] || 0) + 1;
+      });
+    });
+  });
+
+  Object.keys(weaknesses).forEach(w => {
+    if (weaknesses[w] >= 3) {
+      score -= 8;
+      warnings.push(`Weakness: ${w.toUpperCase()} x${weaknesses[w]} members.`);
+    }
+  });
+
+  let totalHp = 0;
+  let totalSpeed = 0;
+  let totalAtkSpAtk = 0;
+  
+  squad.forEach(p => {
+    const hpVal = p.stats.find(s => s.name === 'hp')?.value || 60;
+    const speedVal = p.stats.find(s => s.name === 'speed')?.value || 60;
+    const atk = p.stats.find(s => s.name === 'attack')?.value || 60;
+    const spatk = p.stats.find(s => s.name === 'special-attack')?.value || 60;
+    
+    totalHp += hpVal;
+    totalSpeed += speedVal;
+    totalAtkSpAtk += Math.max(atk, spatk);
+  });
+
+  const avgHp = totalHp / squad.length;
+  const avgSpeed = totalSpeed / squad.length;
+  const avgOffense = totalAtkSpAtk / squad.length;
+
+  if (avgHp >= 80) pros.push("High defensive bulk rating.");
+  if (avgSpeed >= 80) pros.push("Excellent speed tiers.");
+  if (avgOffense >= 85) pros.push("High offensive pressure.");
+
+  score = Math.max(10, Math.min(100, score));
+
+  let grade = 'D';
+  if (score >= 90) grade = 'S';
+  else if (score >= 80) grade = 'A';
+  else if (score >= 70) grade = 'B';
+  else if (score >= 60) grade = 'C';
+
+  return {
+    score,
+    grade,
+    pros,
+    cons: cons.slice(0, 3),
+    warnings: warnings.slice(0, 3),
+    stats: {
+      hp: Math.min(100, Math.round(avgHp)),
+      speed: Math.min(100, Math.round(avgSpeed)),
+      offense: Math.min(100, Math.round(avgOffense)),
+      coverage: Math.min(100, uniqueTypes.size * 5 + 10)
+    }
+  };
+};
+
+const calculateMatchup = (userSquad, npcTeamIds, allPkmn) => {
+  if (userSquad.length === 0) return { winRate: 0, advice: "Assemble a team to simulate battle!" };
+
+  const npcPkmn = allPkmn.filter(p => npcTeamIds.includes(p.id));
+  let userPoints = 0;
+  let npcPoints = 0;
+  const counters = [];
+  const threats = [];
+
+  const typeChart = {
+    fire: { water: 0.5, grass: 2, fire: 0.5, ice: 2, bug: 2, rock: 0.5, dragon: 0.5, steel: 2 },
+    water: { fire: 2, water: 0.5, grass: 0.5, ground: 2, rock: 2, dragon: 0.5 },
+    grass: { fire: 0.5, water: 2, grass: 0.5, poison: 0.5, ground: 2, flying: 0.5, bug: 0.5, rock: 2, dragon: 0.5, steel: 0.5 },
+    electric: { water: 2, grass: 0.5, electric: 0.5, ground: 0, flying: 2, dragon: 0.5 },
+    normal: { rock: 0.5, ghost: 0, steel: 0.5 },
+    ice: { fire: 0.5, water: 0.5, grass: 2, ice: 0.5, ground: 2, flying: 2, dragon: 2, steel: 0.5 },
+    fighting: { normal: 2, ice: 2, poison: 0.5, flying: 0.5, psychic: 0.5, bug: 0.5, rock: 2, ghost: 0, dark: 2, steel: 2, fairy: 0.5 },
+    poison: { grass: 2, poison: 0.5, ground: 0.5, rock: 0.5, ghost: 0.5, steel: 0, fairy: 2 },
+    ground: { fire: 2, grass: 0.5, electric: 2, poison: 2, flying: 0, bug: 0.5, rock: 2, steel: 2 },
+    flying: { grass: 2, electric: 0.5, fighting: 2, bug: 2, rock: 0.5, steel: 0.5 },
+    psychic: { fighting: 2, poison: 2, psychic: 0.5, dark: 0, steel: 0.5 },
+    bug: { fire: 0.5, grass: 2, fighting: 0.5, poison: 0.5, flying: 0.5, psychic: 2, ghost: 0.5, dark: 2, steel: 0.5, fairy: 0.5 },
+    rock: { fire: 2, ice: 2, fighting: 0.5, ground: 0.5, flying: 2, bug: 2, steel: 0.5 },
+    ghost: { normal: 0, psychic: 2, ghost: 2, dark: 0.5 },
+    dragon: { dragon: 2, steel: 0.5, fairy: 0 },
+    steel: { fire: 0.5, water: 0.5, ice: 2, rock: 2, steel: 0.5, fairy: 2 },
+    fairy: { fire: 0.5, fighting: 2, poison: 0.5, dragon: 2, dark: 2, steel: 0.5 },
+    dark: { fighting: 0.5, psychic: 2, ghost: 2, dark: 0.5, fairy: 0.5 }
+  };
+
+  userSquad.forEach(u => {
+    npcPkmn.forEach(n => {
+      let uMult = 1;
+      let nMult = 1;
+      u.types.forEach(ut => {
+        n.types.forEach(nt => {
+          if (typeChart[ut] && typeChart[ut][nt] !== undefined) uMult *= typeChart[ut][nt];
+          if (typeChart[nt] && typeChart[nt][ut] !== undefined) nMult *= typeChart[nt][ut];
+        });
+      });
+
+      if (uMult > 1) {
+        userPoints += 5;
+        if (uMult >= 2 && !counters.some(c => c.user === u.name && c.npc === n.name)) {
+          counters.push({ user: u.name, npc: n.name });
+        }
+      }
+      if (nMult > 1) {
+        npcPoints += 5;
+        if (nMult >= 2 && !threats.some(t => t.user === n.name && t.npc === u.name)) {
+          threats.push({ user: n.name, npc: u.name });
+        }
+      }
+    });
+  });
+
+  const diff = userPoints - npcPoints;
+  let winRate = 50 + (diff * 2);
+  winRate = Math.max(10, Math.min(99, winRate));
+
+  let advice = "Your team is balanced. Play carefully and leverage element swaps.";
+  if (winRate >= 75) advice = "Excellent matchup! You have heavy counters against their key sweepers. Lead with type advantages.";
+  else if (winRate >= 60) advice = "Favorable match. Focus on taking down their principal threats before switching in your sweepers.";
+  else if (winRate <= 35) advice = "Difficult match! Opponent has deep type advantages against your squad. Edit your active team.";
+  else if (winRate < 50) advice = "Slightly unfavorable. Prepare screens or status conditions to offset their offensive threats.";
+
+  return { winRate, advice, counters: counters.slice(0, 3), threats: threats.slice(0, 3) };
+};
+
 export default function TrainerClient({ initialTrainer, allPokemon }) {
   const [trainer, setTrainer] = useState(initialTrainer);
-  const [activeTab, setActiveTab] = useState('profile'); // profile | collection | settings | admin
+  const [activeTab, setActiveTab] = useState('profile'); // profile | collection | simulator | matchups | settings | admin
   
   // Profile edit settings
   const [displayName, setDisplayName] = useState(trainer.displayName);
@@ -163,14 +406,26 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
   const [suggestFormat, setSuggestFormat] = useState('single'); // single | double
   const [suggestArchetype, setSuggestArchetype] = useState('balanced'); // balanced | offense | defense
 
+  // Simulator states
+  const [selectedNpc, setSelectedNpc] = useState(NPC_OPPONENTS[0]);
+
   // Admin settings states
   const [adminTrainers, setAdminTrainers] = useState([]);
   const [adminLoading, setAdminLoading] = useState(false);
   const [adminError, setAdminError] = useState('');
 
+  // Type matchups graph states
+  const [selectedGraphType, setSelectedGraphType] = useState('fire');
+  const [matchupDirection, setMatchupDirection] = useState('offensive'); // offensive | defensive
+
   const router = useRouter();
   const isAdmin = trainer.username === 'admin' || trainer.role === 'admin';
+  
+  const ownedPokemonDetails = allPokemon.filter(p => trainer.ownedPokemon.includes(p.id));
+  const vanguardSquad = ownedPokemonDetails.slice(0, 6);
   const suggestedTeam = getTeamSuggestions(trainer.ownedPokemon, allPokemon, suggestScope === 'all', suggestFormat, suggestArchetype);
+  const synergyReport = analyzeSynergy(vanguardSquad);
+  const battleSimReport = calculateMatchup(vanguardSquad, selectedNpc.team, allPokemon);
 
   // Fetch trainers for Admin
   const fetchAdminTrainers = async () => {
@@ -259,6 +514,8 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
     }
   };
 
+
+
   // Delete Trainer Account
   const handleDeleteTrainer = async (id, name) => {
     if (!window.confirm(`Are you sure you want to delete trainer "${name}"? This action cannot be undone.`)) {
@@ -277,9 +534,6 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
     }
   };
 
-  // Get Owned Pokemon Detailed Objects
-  const ownedPokemonDetails = allPokemon.filter(p => trainer.ownedPokemon.includes(p.id));
-
   // Filter owned pokemon list for table search
   const filteredOwnedPokemon = ownedPokemonDetails.filter(p => 
     p.name.toLowerCase().includes(collectionSearch.toLowerCase()) || 
@@ -291,9 +545,6 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
     p.name.toLowerCase().includes(pokeSearch.toLowerCase()) || 
     p.id.toString().includes(pokeSearch)
   );
-
-  // Split owned pokemon: First 6 go to active Vanguard Squad, rest in extended collection
-  const vanguardSquad = ownedPokemonDetails.slice(0, 6);
 
   // Helper to calculate mock level based on pokemon id
   const getPokeLevel = (id) => {
@@ -318,6 +569,24 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
             onClick={() => setActiveTab('collection')}
           >
             <i className="fa-solid fa-circle-nodes"></i> My Pokemon
+          </button>
+        )}
+
+        {!isAdmin && (
+          <button 
+            className={`trainer-nav-item ${activeTab === 'simulator' ? 'active' : ''}`}
+            onClick={() => setActiveTab('simulator')}
+          >
+            <i className="fa-solid fa-gamepad"></i> VGC Simulator
+          </button>
+        )}
+
+        {!isAdmin && (
+          <button 
+            className={`trainer-nav-item ${activeTab === 'matchups' ? 'active' : ''}`}
+            onClick={() => setActiveTab('matchups')}
+          >
+            <i className="fa-solid fa-circle-nodes"></i> Type Matchups
           </button>
         )}
         
@@ -448,6 +717,98 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
                     </div>
                   )}
                 </div>
+
+                {/* VANGUARD SYNERGY ANALYZER SECTION */}
+                {vanguardSquad.length > 0 && synergyReport && (
+                  <div className="collection-table-card" style={{ marginBottom: '2.5rem', borderLeft: '5px solid var(--primary-color)' }}>
+                    <h3 className="trainer-section-title">
+                      <i className="fa-solid fa-circle-nodes" style={{ color: 'var(--primary-color)' }}></i> Vanguard Synergy & Tactical Analyzer
+                    </h3>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
+                      Calculates tactical core synergies, defensive coverages, and weaknesses in your active squad.
+                    </p>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem' }}>
+                      {/* Flex layout for Grades and Radar bar scores */}
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem', alignItems: 'center' }}>
+                        {/* Grade Shield */}
+                        <div className="synergy-grade-shield">
+                          <span className="grade-title">GRADE</span>
+                          <span className="grade-value">{synergyReport.grade}</span>
+                        </div>
+ 
+                        {/* Stats Breakdown */}
+                        <div className="synergy-stats-grid">
+                          <div className="synergy-stat-group">
+                            <span className="stat-label">Offense Rating: {synergyReport.stats.offense}%</span>
+                            <div className="hp-bar-container" style={{ height: '6px', marginTop: '0.25rem' }}>
+                              <div className="hp-bar-fill" style={{ width: `${synergyReport.stats.offense}%`, background: '#ef4444' }}></div>
+                            </div>
+                          </div>
+                          <div className="synergy-stat-group">
+                            <span className="stat-label">Defense Bulk: {synergyReport.stats.hp}%</span>
+                            <div className="hp-bar-container" style={{ height: '6px', marginTop: '0.25rem' }}>
+                              <div className="hp-bar-fill" style={{ width: `${synergyReport.stats.hp}%`, background: '#10b981' }}></div>
+                            </div>
+                          </div>
+                          <div className="synergy-stat-group">
+                            <span className="stat-label">Speed Tier: {synergyReport.stats.speed}%</span>
+                            <div className="hp-bar-container" style={{ height: '6px', marginTop: '0.25rem' }}>
+                              <div className="hp-bar-fill" style={{ width: `${synergyReport.stats.speed}%`, background: '#6390f0' }}></div>
+                            </div>
+                          </div>
+                          <div className="synergy-stat-group">
+                            <span className="stat-label">Type Coverage: {synergyReport.stats.coverage}%</span>
+                            <div className="hp-bar-container" style={{ height: '6px', marginTop: '0.25rem' }}>
+                              <div className="hp-bar-fill" style={{ width: `${synergyReport.stats.coverage}%`, background: '#f59e0b' }}></div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+ 
+                      {/* Pros, Cons, and Warnings lists */}
+                      <div className="synergy-feedback-grid">
+                        {/* Pros */}
+                        <div className="synergy-feedback-card pros">
+                          <h4>
+                            <i className="fa-solid fa-circle-check"></i> Tactical Strengths
+                          </h4>
+                          <ul>
+                            {synergyReport.pros.map((p, i) => <li key={i}>{p}</li>)}
+                          </ul>
+                        </div>
+ 
+                        {/* Cons */}
+                        <div className="synergy-feedback-card cons">
+                          <h4>
+                            <i className="fa-solid fa-triangle-exclamation"></i> Strategy Recommendations
+                          </h4>
+                          {synergyReport.cons.length > 0 ? (
+                            <ul>
+                              {synergyReport.cons.map((c, i) => <li key={i}>{c}</li>)}
+                            </ul>
+                          ) : (
+                            <p style={{ fontSize: '0.75rem', color: '#92400e' }}>No structural flaws detected in core types.</p>
+                          )}
+                        </div>
+ 
+                        {/* Warnings */}
+                        <div className="synergy-feedback-card warnings">
+                          <h4>
+                            <i className="fa-solid fa-circle-radiation"></i> Defensive Weaknesses
+                          </h4>
+                          {synergyReport.warnings.length > 0 ? (
+                            <ul>
+                              {synergyReport.warnings.map((w, i) => <li key={i}>{w}</li>)}
+                            </ul>
+                          ) : (
+                            <p style={{ fontSize: '0.75rem', color: '#166534', fontWeight: 600 }}><i className="fa-solid fa-circle-check"></i> Perfect! No shared triple type weaknesses.</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Extended Collection Table (Screenshot 2) */}
                 <div className="collection-table-card">
@@ -828,6 +1189,427 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
           </div>
         )}
 
+        {/* VGC MATCHUP SIMULATOR TAB */}
+        {activeTab === 'simulator' && (
+          <div className="profile-section" style={{ background: '#ffffff', border: '1px solid var(--border-color)', borderRadius: '20px', padding: '2rem' }}>
+            <h3 className="profile-section-title" style={{ fontSize: '1.25rem' }}>
+              <i className="fa-solid fa-gamepad"></i> VGC Matchup Simulator
+            </h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '2rem' }}>
+              Simulate element coverage battles against famous regional gym leaders and champions.
+            </p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '2rem' }}>
+              {/* Flex wrapper for NPC selection and match report */}
+              <div className="sim-layout-wrapper">
+                
+                {/* 1. Opponent Selector */}
+                <div>
+                  <h4 style={{ fontSize: '0.95rem', fontWeight: 800, marginBottom: '1rem', color: 'var(--text-primary)' }}>Choose Opponent</h4>
+                  <div className="npc-selector-column">
+                    {NPC_OPPONENTS.map(npc => (
+                      <div 
+                        key={npc.name}
+                        onClick={() => setSelectedNpc(npc)}
+                        className={`npc-selection-card ${selectedNpc.name === npc.name ? 'selected' : ''}`}
+                      >
+                        <img src={npc.avatar} alt={npc.name} className="npc-avatar" />
+                        <div>
+                          <h5 className="npc-name">{npc.name}</h5>
+                          <span className="npc-role">{npc.role}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 2. Simulation Stats View */}
+                <div className="sim-analysis-report-card">
+                  <h4 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '1.2rem' }}>Simulation Analysis</h4>
+                  
+                  {vanguardSquad.length === 0 ? (
+                    <div style={{ margin: 'auto' }}>
+                      <i className="fa-solid fa-shield-halved" style={{ fontSize: '2.5rem', color: 'var(--text-secondary)', marginBottom: '0.8rem', display: 'block' }}></i>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Add Pokémon to your Vanguard Squad to activate VGC Matchup simulation.</p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Big Win Chance Gauge */}
+                      <div className="win-rate-dial">
+                        <span className="win-rate-number">{battleSimReport.winRate}%</span>
+                        <span className="win-rate-label">WIN RATE</span>
+                      </div>
+
+                      {/* Tactical advice text */}
+                      <p className="sim-tactical-advice">
+                        &ldquo;{battleSimReport.advice}&rdquo;
+                      </p>
+
+                      {/* Counters and threats list */}
+                      <div className="sim-advantage-list">
+                        {/* Counters */}
+                        <div className="sim-advantage-item counters">
+                          <span className="badge-title"><i className="fa-solid fa-circle-check"></i> Key Counters</span>
+                          {battleSimReport.counters.length > 0 ? (
+                            <div className="sim-badges-container">
+                              {battleSimReport.counters.map((c, i) => (
+                                <span key={i} className="advantage-badge counter">
+                                  {c.user} beats {c.npc}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>No direct element advantages found.</p>
+                          )}
+                        </div>
+
+                        {/* Threats */}
+                        <div className="sim-advantage-item threats">
+                          <span className="badge-title"><i className="fa-solid fa-circle-exclamation"></i> Serious Threats</span>
+                          {battleSimReport.threats.length > 0 ? (
+                            <div className="sim-badges-container">
+                              {battleSimReport.threats.map((t, i) => (
+                                <span key={i} className="advantage-badge threat">
+                                  {t.user} counters {t.npc}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <p style={{ fontSize: '0.75rem', color: '#166534', fontWeight: 600, marginTop: '0.15rem' }}><i className="fa-solid fa-circle-check"></i> Safe! No severe type counters faced.</p>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TYPE MATCHUPS TAB */}
+        {activeTab === 'matchups' && (
+          <div className="profile-section" style={{ background: '#ffffff', border: '1px solid var(--border-color)', borderRadius: '20px', padding: '2rem' }}>
+            <h3 className="profile-section-title" style={{ fontSize: '1.25rem' }}>
+              <i className="fa-solid fa-circle-nodes"></i> Type Matchups Visualizer
+            </h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '2rem', lineHeight: '1.5' }}>
+              Interactive type effectiveness analyzer. Click any type node on the graph to analyze its strengths, weaknesses, and damage multipliers.
+            </p>
+
+            <div className="matchups-layout-grid">
+              {/* 1. SVG Network Graph Card */}
+              <div className="graph-card">
+                {/* Toggle Attacking / Defending */}
+                <div className="direction-toggle-container">
+                  <button 
+                    type="button"
+                    className={`direction-toggle-btn ${matchupDirection === 'offensive' ? 'active' : ''}`}
+                    onClick={() => setMatchupDirection('offensive')}
+                  >
+                    <i className="fa-solid fa-wand-magic-sparkles"></i> Offense (Deals Damage)
+                  </button>
+                  <button 
+                    type="button"
+                    className={`direction-toggle-btn ${matchupDirection === 'defensive' ? 'active' : ''}`}
+                    onClick={() => setMatchupDirection('defensive')}
+                  >
+                    <i className="fa-solid fa-shield-halved"></i> Defense (Takes Damage)
+                  </button>
+                </div>
+
+                <div className="graph-svg-wrapper">
+                  <svg viewBox="0 0 520 520" className="graph-svg-element">
+                    <defs>
+                      <marker id="arrow-green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                        <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#10b981" />
+                      </marker>
+                      <marker id="arrow-red" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                        <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#ef4444" />
+                      </marker>
+                      <marker id="arrow-grey" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                        <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#94a3b8" />
+                      </marker>
+                    </defs>
+
+                    {/* Render Edge Lines first so they sit under the nodes */}
+                    {Object.keys(TYPE_TRANSLATIONS).map(t => {
+                      if (t === selectedGraphType) return null;
+
+                      let multiplier = 1.0;
+                      let lineClass = "";
+                      let labelClass = "";
+                      let labelText = "";
+                      let isGreen = false;
+                      let isRed = false;
+
+                      if (matchupDirection === 'offensive') {
+                        multiplier = TYPE_CHART[selectedGraphType][t];
+                        if (multiplier === 2) {
+                          lineClass = "offensive-2x";
+                          labelClass = "x2";
+                          labelText = "2x";
+                          isGreen = true;
+                        } else if (multiplier === 0.5) {
+                          lineClass = "offensive-05x";
+                          labelClass = "x05";
+                          labelText = "0.5x";
+                          isRed = true;
+                        } else if (multiplier === 0) {
+                          lineClass = "offensive-0x";
+                          labelClass = "x0";
+                          labelText = "0x";
+                        }
+                      } else {
+                        multiplier = TYPE_CHART[t][selectedGraphType];
+                        if (multiplier === 2) {
+                          lineClass = "defensive-2x";
+                          labelClass = "x05";
+                          labelText = "2x";
+                          isRed = true;
+                        } else if (multiplier === 0.5) {
+                          lineClass = "defensive-05x";
+                          labelClass = "x2";
+                          labelText = "0.5x";
+                          isGreen = true;
+                        } else if (multiplier === 0) {
+                          lineClass = "defensive-0x";
+                          labelClass = "x0";
+                          labelText = "0x";
+                        }
+                      }
+
+                      if (multiplier === 1.0) return null;
+
+                      // Calculate coords
+                      const types = Object.keys(TYPE_TRANSLATIONS);
+                      const idx1 = types.indexOf(selectedGraphType);
+                      const idx2 = types.indexOf(t);
+                      const ang1 = (idx1 * 360 / 18) * Math.PI / 180;
+                      const ang2 = (idx2 * 360 / 18) * Math.PI / 180;
+                      const cx1 = 260 + 200 * Math.cos(ang1);
+                      const cy1 = 260 + 200 * Math.sin(ang1);
+                      const cx2 = 260 + 200 * Math.cos(ang2);
+                      const cy2 = 260 + 200 * Math.sin(ang2);
+
+                      const dx = cx2 - cx1;
+                      const dy = cy2 - cy1;
+                      const len = Math.sqrt(dx * dx + dy * dy);
+                      const ux = dx / len;
+                      const uy = dy / len;
+
+                      const dStart = 42;
+                      const dEnd = 45;
+
+                      // Source to Target direction
+                      let xS, yS, xT, yT;
+                      if (matchupDirection === 'offensive') {
+                        xS = cx1 + dStart * ux;
+                        yS = cy1 + dStart * uy;
+                        xT = cx2 - dEnd * ux;
+                        yT = cy2 - dEnd * uy;
+                      } else {
+                        xS = cx2 - dStart * ux;
+                        yS = cy2 - dStart * uy;
+                        xT = cx1 + dEnd * ux;
+                        yT = cy1 + dEnd * uy;
+                      }
+
+                      // Label midpoint
+                      const mx = cx1 + len * 0.55 * ux;
+                      const my = cy1 + len * 0.55 * uy;
+
+                      const markerUrl = isGreen ? "url(#arrow-green)" : (isRed ? "url(#arrow-red)" : "url(#arrow-grey)");
+
+                      return (
+                        <g key={`edge-${t}`}>
+                          <line 
+                            x1={xS} 
+                            y1={yS} 
+                            x2={xT} 
+                            y2={yT} 
+                            className={`type-edge-line ${lineClass}`}
+                            markerEnd={markerUrl}
+                          />
+                          {/* Label overlay */}
+                          <g transform={`translate(${mx}, ${my})`} className="edge-multiplier-label">
+                            <rect 
+                              x={-15} 
+                              y={-8} 
+                              width={30} 
+                              height={16} 
+                              rx={4} 
+                              className={`edge-multiplier-rect ${labelClass}`}
+                            />
+                            <text 
+                              x={0} 
+                              y={4} 
+                              textAnchor="middle" 
+                              className={`edge-multiplier-text ${labelClass}`}
+                            >
+                              {labelText}
+                            </text>
+                          </g>
+                        </g>
+                      );
+                    })}
+
+                    {/* Render Type Nodes */}
+                    {Object.keys(TYPE_TRANSLATIONS).map((t, idx) => {
+                      const ang = (idx * 360 / 18) * Math.PI / 180;
+                      const nx = 260 + 200 * Math.cos(ang);
+                      const ny = 260 + 200 * Math.sin(ang);
+                      const isSelected = t === selectedGraphType;
+                      const typeInfo = TYPE_TRANSLATIONS[t];
+
+                      // Determine if faded
+                      let isFaded = false;
+                      if (selectedGraphType && !isSelected) {
+                        const relOffensive = TYPE_CHART[selectedGraphType][t] !== 1.0;
+                        const relDefensive = TYPE_CHART[t][selectedGraphType] !== 1.0;
+                        const isConnected = matchupDirection === 'offensive' ? relOffensive : relDefensive;
+                        isFaded = !isConnected;
+                      }
+
+                      return (
+                        <g 
+                          key={`node-${t}`} 
+                          transform={`translate(${nx}, ${ny})`}
+                          onClick={() => setSelectedGraphType(t)}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          <rect 
+                            x={-38} 
+                            y={-14} 
+                            width={76} 
+                            height={28} 
+                            rx={14} 
+                            fill={typeInfo.color}
+                            className={`type-node-rect ${isSelected ? 'selected' : ''} ${isFaded ? 'faded' : ''}`}
+                          />
+                          <text 
+                            x={0} 
+                            y={4} 
+                            textAnchor="middle" 
+                            fill="#ffffff" 
+                            fontSize="11" 
+                            fontWeight="800" 
+                            style={{ 
+                              pointerEvents: 'none', 
+                              textTransform: 'uppercase', 
+                              letterSpacing: '0.03em',
+                              opacity: isFaded ? 0.6 : 1 
+                            }}
+                          >
+                            {typeInfo.name}
+                          </text>
+                        </g>
+                      );
+                    })}
+                  </svg>
+                </div>
+              </div>
+
+              {/* 2. Detailed Breakdown Column */}
+              <div className="matchup-details-column">
+                <div style={{ background: '#f8fafc', padding: '1.2rem', borderRadius: '16px', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <span className="type-pill-static" style={{ background: TYPE_TRANSLATIONS[selectedGraphType].color, fontSize: '1rem', padding: '0.5rem 1.2rem', borderRadius: '10px' }}>
+                    {TYPE_TRANSLATIONS[selectedGraphType].name}
+                  </span>
+                  <div>
+                    <h4 style={{ fontSize: '0.9rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>Selected Type Analysis</h4>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Click other nodes to switch selection</span>
+                  </div>
+                </div>
+
+                {/* Offensive Strengths */}
+                <div className="matchup-detail-card strengths">
+                  <h4><i className="fa-solid fa-wand-magic-sparkles"></i> Deals 2x Damage To (Offensive Strengths)</h4>
+                  <div className="matchup-badge-grid">
+                    {Object.keys(TYPE_TRANSLATIONS).filter(t => TYPE_CHART[selectedGraphType][t] === 2).length > 0 ? (
+                      Object.keys(TYPE_TRANSLATIONS).filter(t => TYPE_CHART[selectedGraphType][t] === 2).map(t => (
+                        <span 
+                          key={t} 
+                          className="type-pill-static" 
+                          onClick={() => setSelectedGraphType(t)} 
+                          style={{ cursor: 'pointer', background: TYPE_TRANSLATIONS[t].color }}
+                        >
+                          {TYPE_TRANSLATIONS[t].name}
+                        </span>
+                      ))
+                    ) : (
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>None</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Defensive Weaknesses */}
+                <div className="matchup-detail-card weaknesses">
+                  <h4><i className="fa-solid fa-triangle-exclamation"></i> Takes 2x Damage From (Defensive Weaknesses)</h4>
+                  <div className="matchup-badge-grid">
+                    {Object.keys(TYPE_TRANSLATIONS).filter(t => TYPE_CHART[t][selectedGraphType] === 2).length > 0 ? (
+                      Object.keys(TYPE_TRANSLATIONS).filter(t => TYPE_CHART[t][selectedGraphType] === 2).map(t => (
+                        <span 
+                          key={t} 
+                          className="type-pill-static" 
+                          onClick={() => setSelectedGraphType(t)} 
+                          style={{ cursor: 'pointer', background: TYPE_TRANSLATIONS[t].color }}
+                        >
+                          {TYPE_TRANSLATIONS[t].name}
+                        </span>
+                      ))
+                    ) : (
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>None</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Defensive Resistances */}
+                <div className="matchup-detail-card resistances">
+                  <h4><i className="fa-solid fa-shield-halved"></i> Takes 0.5x Damage From (Defensive Resistances)</h4>
+                  <div className="matchup-badge-grid">
+                    {Object.keys(TYPE_TRANSLATIONS).filter(t => TYPE_CHART[t][selectedGraphType] === 0.5).length > 0 ? (
+                      Object.keys(TYPE_TRANSLATIONS).filter(t => TYPE_CHART[t][selectedGraphType] === 0.5).map(t => (
+                        <span 
+                          key={t} 
+                          className="type-pill-static" 
+                          onClick={() => setSelectedGraphType(t)} 
+                          style={{ cursor: 'pointer', background: TYPE_TRANSLATIONS[t].color }}
+                        >
+                          {TYPE_TRANSLATIONS[t].name}
+                        </span>
+                      ))
+                    ) : (
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>None</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Defensive Immunities */}
+                <div className="matchup-detail-card immunities">
+                  <h4><i className="fa-solid fa-ban"></i> Takes 0x Damage From (Defensive Immunities)</h4>
+                  <div className="matchup-badge-grid">
+                    {Object.keys(TYPE_TRANSLATIONS).filter(t => TYPE_CHART[t][selectedGraphType] === 0).length > 0 ? (
+                      Object.keys(TYPE_TRANSLATIONS).filter(t => TYPE_CHART[t][selectedGraphType] === 0).map(t => (
+                        <span 
+                          key={t} 
+                          className="type-pill-static" 
+                          onClick={() => setSelectedGraphType(t)} 
+                          style={{ cursor: 'pointer', background: TYPE_TRANSLATIONS[t].color }}
+                        >
+                          {TYPE_TRANSLATIONS[t].name}
+                        </span>
+                      ))
+                    ) : (
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>None</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ACCOUNT SETTINGS EDIT TAB */}
         {activeTab === 'settings' && (
           <div className="profile-section" style={{ background: '#ffffff', border: '1px solid var(--border-color)', borderRadius: '20px', padding: '2rem' }}>
@@ -1005,4 +1787,3 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
     </div>
   );
 }
-
