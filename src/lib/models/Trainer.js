@@ -29,6 +29,14 @@ const TrainerSchema = new mongoose.Schema({
     type: [Number], // Array of PokéAPI Pokemon IDs
     default: [],
   },
+  teams: {
+    type: [[Number]],
+    default: [
+      [null, null, null, null, null, null],
+      [null, null, null, null, null, null],
+      [null, null, null, null, null, null]
+    ]
+  },
   role: {
     type: String,
     enum: ['user', 'admin'],

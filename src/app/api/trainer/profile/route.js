@@ -11,12 +11,13 @@ export async function PUT(request) {
     }
 
     await dbConnect();
-    const { displayName, dob, avatar } = await request.json();
+    const { displayName, dob, avatar, teams } = await request.json();
 
     const updateFields = {};
     if (displayName !== undefined) updateFields.displayName = displayName;
     if (dob !== undefined) updateFields.dob = dob ? new Date(dob) : null;
     if (avatar !== undefined) updateFields.avatar = avatar;
+    if (teams !== undefined) updateFields.teams = teams;
 
     const trainer = await Trainer.findByIdAndUpdate(
       session._id,

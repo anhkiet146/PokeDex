@@ -4,6 +4,13 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import metaTeams from '@/lib/meta-teams.json';
+import {
+  getSuggestedNature,
+  getSuggestedItem,
+  getSuggestedEvSpread,
+  formatPokemonName,
+  getMegaHeldItem
+} from '@/lib/competitive';
 
 const TYPE_TRANSLATIONS = {
   normal: { name: 'Normal', color: '#A8A77A' },
@@ -83,7 +90,496 @@ const TYPE_CHART = {
   dark: { normal: 1, fire: 1, water: 1, electric: 1, grass: 1, ice: 1, fighting: 0.5, poison: 1, ground: 1, flying: 1, psychic: 2, bug: 1, rock: 1, ghost: 2, dragon: 1, steel: 1, fairy: 0.5, dark: 0.5 }
 };
 
+const NON_SPECIES_PREFIXES = ['tapu', 'iron', 'great', 'scream', 'brute', 'flutter', 'slither', 'sandy', 'roaring', 'walking', 'gouging', 'raging'];
+
+const getBaseSpeciesName = (name) => {
+  const parts = name.toLowerCase().split('-');
+  const first = parts[0];
+  if (NON_SPECIES_PREFIXES.includes(first) && parts.length > 1) {
+    return first + '-' + parts[1];
+  }
+  return first;
+};
+
+const EVOLUTION_FAMILIES = [
+  ['bulbasaur', 'ivysaur', 'venusaur'],
+  ['charmander', 'charmeleon', 'charizard'],
+  ['squirtle', 'wartortle', 'blastoise'],
+  ['caterpie', 'metapod', 'butterfree'],
+  ['weedle', 'kakuna', 'beedrill'],
+  ['pidgey', 'pidgeotto', 'pidgeot'],
+  ['rattata', 'raticate'],
+  ['spearow', 'fearow'],
+  ['ekans', 'arbok'],
+  ['pikachu', 'raichu', 'pichu'],
+  ['sandshrew', 'sandslash'],
+  ['nidoran-f', 'nidorina', 'nidoqueen'],
+  ['nidoran-m', 'nidorino', 'nidoking'],
+  ['clefairy', 'clefable', 'cleffa'],
+  ['vulpix', 'ninetales'],
+  ['jigglypuff', 'wigglytuff', 'igglybuff'],
+  ['zubat', 'golbat', 'crobat'],
+  ['oddish', 'gloom', 'vileplume', 'bellossom'],
+  ['paras', 'parasect'],
+  ['venonat', 'venomoth'],
+  ['diglett', 'dugtrio'],
+  ['meowth', 'persian', 'perrserker'],
+  ['psyduck', 'golduck'],
+  ['mankey', 'primeape', 'annihilape'],
+  ['growlithe', 'arcanine'],
+  ['poliwag', 'poliwhirl', 'poliwrath', 'politoed'],
+  ['abra', 'kadabra', 'alakazam'],
+  ['machop', 'machoke', 'machamp'],
+  ['bellsprout', 'weepinbell', 'victreebel'],
+  ['tentacool', 'tentacruel'],
+  ['geodude', 'graveler', 'golem'],
+  ['ponyta', 'rapidash'],
+  ['slowpoke', 'slowbro', 'slowking'],
+  ['magnemite', 'magneton', 'magnezone'],
+  ['farfetchd', 'sirfetchd'],
+  ['doduo', 'dodrio'],
+  ['seel', 'dewgong'],
+  ['grimer', 'muk'],
+  ['shellder', 'cloyster'],
+  ['gastly', 'haunter', 'gengar'],
+  ['onix', 'steelix'],
+  ['drowzee', 'hypno'],
+  ['krabby', 'kingler'],
+  ['voltorb', 'electrode'],
+  ['exeggcute', 'exeggutor'],
+  ['cubone', 'marowak'],
+  ['tyrogue', 'hitmonlee', 'hitmonchan', 'hitmontop'],
+  ['lickitung', 'lickilicky'],
+  ['koffing', 'weezing'],
+  ['rhyhorn', 'rhydon', 'rhyperior'],
+  ['chansey', 'blissey', 'happiny'],
+  ['tangela', 'tangrowth'],
+  ['horsea', 'seadra', 'kingdra'],
+  ['goldeen', 'seaking'],
+  ['staryu', 'starmie'],
+  ['mrmime', 'mimejr', 'mrrime', 'mr-mime', 'mime-jr', 'mr-rime'],
+  ['scyther', 'scizor', 'kleavor'],
+  ['jynx', 'smoochum'],
+  ['electabuzz', 'electivire', 'elekid'],
+  ['magmar', 'magmortar', 'magby'],
+  ['magikarp', 'gyarados'],
+  ['eevee', 'vaporeon', 'jolteon', 'flareon', 'espeon', 'umbreon', 'leafeon', 'glaceon', 'sylveon'],
+  ['porygon', 'porygon2', 'porygon-z'],
+  ['omanyte', 'oma-star', 'omastar'],
+  ['kabuto', 'kabutops'],
+  ['snorlax', 'munchlax'],
+  ['dratini', 'dragonair', 'dragonite'],
+  ['sentret', 'furret'],
+  ['hoothoot', 'noctowl'],
+  ['ledyba', 'ledian'],
+  ['spinarak', 'ariados'],
+  ['chinchou', 'lanturn'],
+  ['togepi', 'togetic', 'togekiss'],
+  ['natu', 'xatu'],
+  ['mareep', 'flaaffy', 'ampharos'],
+  ['marill', 'azumarill', 'azurill'],
+  ['sudowoodo', 'bonsly'],
+  ['hoppip', 'skiploom', 'jumpluff'],
+  ['aipom', 'ambipom'],
+  ['sunkern', 'sunflora'],
+  ['yanma', 'yanmega'],
+  ['wooper', 'quagsire', 'clodsire'],
+  ['murkrow', 'honchkrow'],
+  ['misdreavus', 'mismagius'],
+  ['pineco', 'forretress'],
+  ['gligar', 'gliscor'],
+  ['snubbull', 'granbull'],
+  ['qwilfish', 'overqwil'],
+  ['teddiursa', 'ursaring', 'ursaluna'],
+  ['slugma', 'magcargo'],
+  ['swinub', 'piloswine', 'mamoswine'],
+  ['corsola', 'cursola'],
+  ['remoraid', 'octillery'],
+  ['mantine', 'mantyke'],
+  ['houndour', 'houndoom'],
+  ['phanpy', 'donphan'],
+  ['stantler', 'wyrdeer'],
+  ['larvitar', 'pupitar', 'tyranitar'],
+  ['treecko', 'grovyle', 'sceptile'],
+  ['torchic', 'combusken', 'blaziken'],
+  ['mudkip', 'marshtomp', 'swampert'],
+  ['poochyena', 'mightyena'],
+  ['zigzagoon', 'linoone', 'obstagoon'],
+  ['wurmple', 'silcoon', 'beautifly', 'cascoon', 'dustox'],
+  ['lotad', 'lomibre', 'ludicolo'],
+  ['seedot', 'nuzleaf', 'shiftry'],
+  ['taillow', 'swellow'],
+  ['wingull', 'pelipper'],
+  ['ralts', 'kirlia', 'gardevoir', 'gallade'],
+  ['surskit', 'masquerain'],
+  ['shroomish', 'breloom'],
+  ['slakoth', 'vigoroth', 'slaking'],
+  ['nincada', 'ninjask', 'shedinja'],
+  ['whismur', 'loudred', 'exploud'],
+  ['makuhita', 'hariyama'],
+  ['nosepass', 'probopass'],
+  ['skitty', 'delcatty'],
+  ['aron', 'lairon', 'aggron'],
+  ['meditite', 'medicham'],
+  ['electrike', 'manectric'],
+  ['roselia', 'roserade', 'budew'],
+  ['gulpin', 'swalot'],
+  ['carvanha', 'sharpedo'],
+  ['wailmer', 'wailord'],
+  ['numel', 'camerupt'],
+  ['spoink', 'grumpig'],
+  ['trapinch', 'vibrava', 'flygon'],
+  ['cacnea', 'cacturne'],
+  ['swablu', 'altaria'],
+  ['barboach', 'whiscash'],
+  ['corphish', 'crawdaunt'],
+  ['baltoy', 'claydol'],
+  ['lileep', 'cradily'],
+  ['anorith', 'armaldo'],
+  ['feebas', 'milotic'],
+  ['shuppet', 'banette'],
+  ['duskull', 'dusclops', 'dusknoir'],
+  ['chimecho', 'chingling'],
+  ['snorunt', 'glalie', 'froslass'],
+  ['spheal', 'sealeo', 'walrein'],
+  ['clamperl', 'huntail', 'gorebyss'],
+  ['bagon', 'shelgon', 'salamence'],
+  ['beldum', 'metang', 'metagross'],
+  ['turtwig', 'grotle', 'torterra'],
+  ['chimchar', 'monferno', 'infernape'],
+  ['piplup', 'prinplup', 'empoleon'],
+  ['starly', 'staravia', 'staraptor'],
+  ['bidoof', 'bibarel'],
+  ['kricketot', 'kricketune'],
+  ['shinx', 'luxio', 'luxray'],
+  ['cranidos', 'rampardos'],
+  ['shieldon', 'bastiodon'],
+  ['burmy', 'wormadam', 'mothim'],
+  ['combee', 'vespiquen'],
+  ['buizel', 'floatzel'],
+  ['cherubi', 'cherrim'],
+  ['shellos', 'gastrodon'],
+  ['drifloon', 'drifblim'],
+  ['buneary', 'lopunny'],
+  ['glameow', 'purugly'],
+  ['stunky', 'skuntank'],
+  ['bronzor', 'bronzong'],
+  ['gible', 'gabite', 'garchomp'],
+  ['riolu', 'lucario'],
+  ['hippopotas', 'hippowdon'],
+  ['skorupi', 'drapion'],
+  ['croagunk', 'toxicroak'],
+  ['finneon', 'lumineon'],
+  ['snover', 'abomasnow'],
+  ['snivy', 'servine', 'serperior'],
+  ['tepig', 'pignite', 'emboar'],
+  ['oshawott', 'dewott', 'samurott'],
+  ['patrat', 'watchog'],
+  ['lillipup', 'herdier', 'stoutland'],
+  ['purrloin', 'liepard'],
+  ['pansage', 'simisage'],
+  ['pansear', 'simisear'],
+  ['panpour', 'simipour'],
+  ['munna', 'musharna'],
+  ['pidove', 'tranquill', 'unfezant'],
+  ['blitzle', 'zebstrika'],
+  ['roggenrola', 'boldore', 'gigalith'],
+  ['woobat', 'swoobat'],
+  ['drilbur', 'excadrill'],
+  ['timburr', 'gurdurr', 'conkeldurr'],
+  ['tympole', 'palpitoad', 'seismitoad'],
+  ['sewaddle', 'swadoon', 'leavanny'],
+  ['venipede', 'whirlipede', 'scolipede'],
+  ['cottonee', 'whimsicott'],
+  ['petilil', 'lilligant'],
+  ['basculin', 'basculegion'],
+  ['sandile', 'krokorok', 'krookodile'],
+  ['darumaka', 'darmanitan'],
+  ['dwebble', 'crustle'],
+  ['scraggy', 'scrafty'],
+  ['yamask', 'cofagrigus', 'runerigus'],
+  ['tirtouga', 'carracosta'],
+  ['archen', 'archeops'],
+  ['trubbish', 'garbodor'],
+  ['zorua', 'zoroark'],
+  ['minccino', 'cinccino'],
+  ['gothita', 'gothorita', 'gothitelle'],
+  ['solosis', 'duosion', 'reuniclus'],
+  ['ducklett', 'swanna'],
+  ['vanillite', 'vanillish', 'vanilluxe'],
+  ['deerling', 'sawsbuck'],
+  ['karrablast', 'escavalier'],
+  ['foongus', 'amoonguss'],
+  ['frillish', 'jellicent'],
+  ['joltik', 'galvantula'],
+  ['ferroseed', 'ferrothorn'],
+  ['klink', 'klang', 'klinklang'],
+  ['tynamo', 'eelektrik', 'eelektross'],
+  ['elgyem', 'beheeyem'],
+  ['litwick', 'lampent', 'chandelure'],
+  ['axew', 'fraxure', 'haxorus'],
+  ['cubchoo', 'beartic'],
+  ['shelmet', 'accelgor'],
+  ['mienfoo', 'mienshao'],
+  ['golett', 'golurk'],
+  ['pawniard', 'bisharp', 'kingambit'],
+  ['rufflet', 'braviary'],
+  ['vullaby', 'mandibuzz'],
+  ['deino', 'zweilous', 'hydreigon'],
+  ['larvesta', 'volcarona'],
+  ['chespin', 'quilladin', 'chesnaught'],
+  ['fennekin', 'braixen', 'delphox'],
+  ['froakie', 'frogadier', 'greninja'],
+  ['bunnelby', 'diggersby'],
+  ['fletchling', 'fletchinder', 'talonflame'],
+  ['scatterbug', 'spewpa', 'vivillon'],
+  ['litleo', 'pyroar'],
+  ['flabebe', 'floette', 'florges'],
+  ['skiddo', 'gogoat'],
+  ['pancham', 'pangoro'],
+  ['espurr', 'meowstic'],
+  ['honedge', 'doublade', 'aegislash'],
+  ['spritzee', 'aromatisse'],
+  ['swirlix', 'slurpuff'],
+  ['inkay', 'malamar'],
+  ['binacle', 'barbaracle'],
+  ['skrelp', 'dragalge'],
+  ['clauncher', 'clawitzer'],
+  ['helioptile', 'heliolisk'],
+  ['tyrunt', 'tyrantrum'],
+  ['amaura', 'aurorus'],
+  ['goomy', 'sliggoo', 'goodra'],
+  ['phantump', 'trevenant'],
+  ['pumpkaboo', 'gourgeist'],
+  ['bergmite', 'avalugg'],
+  ['noibat', 'noivern'],
+  ['rowlet', 'dartrix', 'decidueye'],
+  ['litten', 'torracat', 'incineroar'],
+  ['popplio', 'brionne', 'primarina'],
+  ['pikipek', 'trumbeak', 'toucannon'],
+  ['yungoos', 'gumshoos'],
+  ['grubbin', 'charjabug', 'vikavolt'],
+  ['crabrawler', 'crabominable'],
+  ['cutiefly', 'ribombee'],
+  ['rockruff', 'lycanroc'],
+  ['mareanie', 'toxapex'],
+  ['mudbray', 'mudsdale'],
+  ['dewpider', 'araquanid'],
+  ['fomantis', 'lurantis'],
+  ['morelull', 'shiinotic'],
+  ['salandit', 'salazzle'],
+  ['stufful', 'bewear'],
+  ['bounsweet', 'steenee', 'tsareena'],
+  ['wimpod', 'golisopod'],
+  ['sandygast', 'palossand'],
+  ['type-null', 'silvally'],
+  ['jangmo-o', 'hakamo-o', 'kommo-o'],
+  ['grookey', 'thwackey', 'rillaboom'],
+  ['scorbunny', 'raboot', 'cinderace'],
+  ['sobble', 'drizzile', 'inteleon'],
+  ['rookidee', 'corvisquire', 'corviknight'],
+  ['blipbug', 'dottler', 'orbeetle'],
+  ['nickit', 'thievul'],
+  ['gossifleur', 'eldegoss'],
+  ['wooloo', 'dubwool'],
+  ['chewtle', 'drednaw'],
+  ['yamper', 'boltund'],
+  ['rolycoly', 'carkol', 'coalossal'],
+  ['applin', 'flapple', 'appletun', 'dipplin', 'hydrapple'],
+  ['silicobra', 'sandaconda'],
+  ['arrokuda', 'barraskewda'],
+  ['toxel', 'toxtricity'],
+  ['sizzlipede', 'centiskorch'],
+  ['clobbopus', 'grapploct'],
+  ['sinistea', 'polteageist', 'poltchageist', 'sinistcha'],
+  ['hatenna', 'hattrem', 'hatterene'],
+  ['impidimp', 'morgrem', 'grimmsnarl'],
+  ['milcery', 'alcremie'],
+  ['snom', 'frosmoth'],
+  ['cufant', 'copperajah'],
+  ['duraludon', 'archaludon'],
+  ['dreepy', 'drakloak', 'dragapult'],
+  ['sprigatito', 'floragato', 'meowscarada'],
+  ['fuecoco', 'crocalor', 'skeledirge'],
+  ['quaxly', 'quaxwell', 'quaquaval'],
+  ['lechonk', 'oinkologne'],
+  ['tarountula', 'spidops'],
+  ['nymble', 'lokix'],
+  ['pawmi', 'pawmo', 'pawmot'],
+  ['tandemaus', 'maushold'],
+  ['fidough', 'dachsbun'],
+  ['smoliv', 'dolliv', 'arboliva'],
+  ['nacli', 'naclstack', 'garganacl'],
+  ['charcadet', 'armarouge', 'ceruledge'],
+  ['tadbulb', 'bellibolt'],
+  ['wattrel', 'kilowattrel'],
+  ['maschiff', 'mabosstiff'],
+  ['shroodle', 'grafaiai'],
+  ['bramblin', 'brambleghast'],
+  ['toedscool', 'toedscruel'],
+  ['capsakid', 'scovillain'],
+  ['rellor', 'rabsca'],
+  ['flittle', 'espathra'],
+  ['tinkatink', 'tinkatuff', 'tinkaton'],
+  ['wiglett', 'wugtrio'],
+  ['finizen', 'palafin'],
+  ['varoom', 'revavroom'],
+  ['glimmet', 'glimmora'],
+  ['greavard', 'houndstone'],
+  ['cetoddle', 'cetitan'],
+  ['frigibax', 'arctibax', 'baxcalibur'],
+  ['gimmighoul', 'gholdengo'],
+  ['poltchageist', 'sinistcha']
+];
+
+const arePokemonRelated = (nameA, nameB) => {
+  if (!nameA || !nameB) return false;
+  
+  const baseA = getBaseSpeciesName(nameA);
+  const baseB = getBaseSpeciesName(nameB);
+  
+  if (baseA === baseB) return true;
+  
+  for (const family of EVOLUTION_FAMILIES) {
+    const hasA = family.includes(baseA);
+    const hasB = family.includes(baseB);
+    if (hasA && hasB) {
+      return true;
+    }
+  }
+  
+  return false;
+};
+
 const getTeamSuggestions = (ownedIds, allPkmn, includeUnowned, format, archetype) => {
+  // Helpers
+  const getStat = (p, name) => p.stats?.find(s => s.name === name)?.value || 60;
+  
+  const getRoleIcon = (role) => {
+    const r = role.toLowerCase();
+    if (r.includes('tailwind') || r.includes('speed') || r.includes('pivot')) return 'fa-wind';
+    if (r.includes('special') || r.includes('magic') || r.includes('special attacker')) return 'fa-wand-magic-sparkles';
+    if (r.includes('physical') || r.includes('sweeper') || r.includes('attacker') || r.includes('strike')) return 'fa-hand-fist';
+    if (r.includes('trick room') || r.includes('support') || r.includes('redirect') || r.includes('defensive') || r.includes('preventer') || r.includes('denial') || r.includes('redirector')) return 'fa-shield-halved';
+    if (r.includes('weather') || r.includes('sun') || r.includes('rain') || r.includes('terrain') || r.includes('drizzle')) return 'fa-cloud-sun-rain';
+    return 'fa-circle-nodes';
+  };
+
+  // Case 1: Suggesting dynamically from OWNED Pokémon only
+  if (!includeUnowned) {
+    if (!ownedIds || ownedIds.length === 0) {
+      return null;
+    }
+    
+    // Get all owned Pokémon data
+    const ownedPkmn = allPkmn.filter(p => ownedIds.includes(p.id));
+    if (ownedPkmn.length === 0) {
+      return null;
+    }
+
+    // Dynamic selection algorithm (greedy type-synergy builder)
+    const candidates = [...ownedPkmn];
+    const selected = [];
+    const activeTypes = new Set();
+
+    // Loop to select up to 6 Pokémon
+    const targetSize = Math.min(6, candidates.length);
+    for (let i = 0; i < targetSize; i++) {
+      let bestIndex = -1;
+      let bestScore = -Infinity;
+
+      for (let j = 0; j < candidates.length; j++) {
+        const p = candidates[j];
+        
+        // Base score calculation based on archetype
+        let baseScore = 0;
+        const atk = getStat(p, 'attack');
+        const spa = getStat(p, 'special-attack');
+        const spe = getStat(p, 'speed');
+        const hp = getStat(p, 'hp');
+        const def = getStat(p, 'defense');
+        const spdef = getStat(p, 'special-defense');
+
+        if (archetype === 'offense') {
+          baseScore = Math.max(atk, spa) * 1.5 + spe;
+        } else if (archetype === 'defense') {
+          baseScore = hp + def + spdef;
+        } else { // balanced
+          baseScore = hp + Math.max(atk, spa) + Math.max(def, spdef) + spe;
+        }
+
+        // Apply penalty for type overlaps to maximize coverage
+        let penalty = 0;
+        p.types.forEach(t => {
+          if (activeTypes.has(t)) {
+            penalty += 45; // Subtract 45 points per overlapping type
+          }
+        });
+
+        const finalScore = baseScore - penalty;
+        if (finalScore > bestScore) {
+          bestScore = finalScore;
+          bestIndex = j;
+        }
+      }
+
+      if (bestIndex !== -1) {
+        const chosen = candidates[bestIndex];
+        selected.push(chosen);
+        chosen.types.forEach(t => activeTypes.add(t));
+        
+        // Remove chosen and any related Pokémon from candidates
+        candidates.splice(bestIndex, 1);
+        for (let k = candidates.length - 1; k >= 0; k--) {
+          if (arePokemonRelated(chosen.name, candidates[k].name)) {
+            candidates.splice(k, 1);
+          }
+        }
+      }
+    }
+
+    // Map selected Pokémon to include dynamic roles
+    const detailedPokemons = selected.map(p => {
+      // Determine role based on stats
+      let role = 'Balanced Combatant';
+      const atk = getStat(p, 'attack');
+      const spa = getStat(p, 'special-attack');
+      const spe = getStat(p, 'speed');
+      const def = getStat(p, 'defense');
+      const hp = getStat(p, 'hp');
+
+      if (spe > 85 && Math.max(atk, spa) > 85) {
+        role = spa > atk ? 'Fast Special Sweeper' : 'Fast Physical Sweeper';
+      } else if (hp + def > 170) {
+        role = 'Bulky Defensive Pivot / Tank';
+      } else if (spe > 100) {
+        role = 'Speed Control / Fast Support';
+      } else if (atk > spa && atk > 90) {
+        role = 'Physical Attacker';
+      } else if (spa > atk && spa > 90) {
+        role = 'Special Attacker';
+      }
+
+      return {
+        ...p,
+        roleName: role,
+        roleIcon: getRoleIcon(role),
+        isOwned: true
+      };
+    });
+
+    const formatLabel = format === 'single' ? 'Singles' : 'Doubles';
+    const archetypeLabel = archetype.charAt(0).toUpperCase() + archetype.slice(1);
+
+    return {
+      teamName: `Your Custom ${archetypeLabel} ${formatLabel} Core`,
+      description: `This team was dynamically compiled from your collection. It selects your strongest Pokémon matching the '${archetype}' archetype and optimizes for type coverage to ensure high tactical flexibility in battle.`,
+      source: 'Collection Intelligence Builder',
+      pokemons: detailedPokemons
+    };
+  }
+
+  // Case 2: Suggesting from Predefined META Teams (includeUnowned is true)
   let matchingTeams = metaTeams.filter(t => t.format === format && t.archetype === archetype);
   
   if (matchingTeams.length === 0) {
@@ -93,10 +589,10 @@ const getTeamSuggestions = (ownedIds, allPkmn, includeUnowned, format, archetype
   if (matchingTeams.length === 0) {
     return null;
   }
-
+  
+  // Select the meta team. If ownedIds are provided, find the one with the highest match
   let selectedTeam = matchingTeams[0];
-
-  if (!includeUnowned && ownedIds.length > 0) {
+  if (ownedIds && ownedIds.length > 0) {
     let bestTeam = matchingTeams[0];
     let maxOwnedCount = -1;
     
@@ -109,16 +605,6 @@ const getTeamSuggestions = (ownedIds, allPkmn, includeUnowned, format, archetype
     }
     selectedTeam = bestTeam;
   }
-
-  const getRoleIcon = (role) => {
-    const r = role.toLowerCase();
-    if (r.includes('tailwind') || r.includes('speed') || r.includes('pivot')) return 'fa-wind';
-    if (r.includes('special') || r.includes('magic') || r.includes('special attacker')) return 'fa-wand-magic-sparkles';
-    if (r.includes('physical') || r.includes('sweeper') || r.includes('attacker') || r.includes('strike')) return 'fa-hand-fist';
-    if (r.includes('trick room') || r.includes('support') || r.includes('redirect') || r.includes('defensive') || r.includes('preventer') || r.includes('denial') || r.includes('redirector')) return 'fa-shield-halved';
-    if (r.includes('weather') || r.includes('sun') || r.includes('rain') || r.includes('terrain') || r.includes('drizzle')) return 'fa-cloud-sun-rain';
-    return 'fa-circle-nodes';
-  };
 
   const detailedPokemons = selectedTeam.pokemons.map(tp => {
     const found = allPkmn.find(p => p.id === tp.id);
@@ -151,26 +637,194 @@ const getTeamSuggestions = (ownedIds, allPkmn, includeUnowned, format, archetype
   };
 };
 
-const analyzeSynergy = (squad) => {
-  if (squad.length === 0) return null;
+const cosineSimilarity = (vecA, vecB) => {
+  if (!vecA || !vecB || vecA.length !== vecB.length) return 0;
+  let dotProduct = 0;
+  let normA = 0;
+  let normB = 0;
+  for (let i = 0; i < vecA.length; i++) {
+    dotProduct += vecA[i] * vecB[i];
+    normA += vecA[i] * vecA[i];
+    normB += vecB[i] * vecB[i];
+  }
+  if (normA === 0 || normB === 0) return 0;
+  return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+};
+
+const POKEMON_TYPES = [
+  'normal', 'fire', 'water', 'grass', 'electric', 'ice', 'fighting', 'poison',
+  'ground', 'flying', 'psychic', 'bug', 'rock', 'ghost', 'dragon', 'dark',
+  'steel', 'fairy'
+];
+
+const getPokemonFeatureVector = (pokemon) => {
+  const vec = new Array(30).fill(0);
+  if (!pokemon) return vec;
+
+  // 1-18: Types
+  const types = pokemon.types || [];
+  POKEMON_TYPES.forEach((type, idx) => {
+    if (types.includes(type)) {
+      vec[idx] = 1.0;
+    }
+  });
+
+  // Helper to get stat value
+  const getStatVal = (name) => {
+    if (!pokemon.stats) return 50;
+    const found = pokemon.stats.find(s => s.name === name);
+    return found ? found.value : 50;
+  };
+
+  // 19-24: Stats normalized (divided by 150, capped at 1.0)
+  const hp = getStatVal('hp');
+  const atk = getStatVal('attack');
+  const def = getStatVal('defense');
+  const spatk = getStatVal('special-attack');
+  const spdef = getStatVal('special-defense');
+  const spe = getStatVal('speed');
+
+  vec[18] = Math.min(hp / 150, 1.0);
+  vec[19] = Math.min(atk / 150, 1.0);
+  vec[20] = Math.min(def / 150, 1.0);
+  vec[21] = Math.min(spatk / 150, 1.0);
+  vec[22] = Math.min(spdef / 150, 1.0);
+  vec[23] = Math.min(spe / 150, 1.0);
+
+  // Abilities helper
+  const abilities = (pokemon.abilities || []).map(a => a.toLowerCase().trim());
+  const hasAbility = (list) => list.some(item => abilities.includes(item));
+
+  // 25: Rain Synergy (Rain Setter or Swift Swim / Water-type benefits)
+  const isRainSetter = hasAbility(['drizzle', 'primordial-sea']);
+  const isRainAbuser = hasAbility(['swift-swim', 'rain-dish', 'hydration', 'dry-skin']);
+  const isWater = types.includes('water');
+  if (isRainSetter) vec[24] = 1.0;
+  else if (isRainAbuser) vec[24] = 0.9;
+  else if (isWater) vec[24] = 0.5;
+
+  // 26: Sun Synergy (Sun Setter or Chlorophyll / Fire-type benefits)
+  const isSunSetter = hasAbility(['drought', 'desolate-land']);
+  const isSunAbuser = hasAbility(['chlorophyll', 'solar-power', 'harvest']);
+  const isFire = types.includes('fire');
+  if (isSunSetter) vec[25] = 1.0;
+  else if (isSunAbuser) vec[25] = 0.9;
+  else if (isFire) vec[25] = 0.5;
+
+  // 27: Trick Room Synergy (Slow + Bulky)
+  const isSlow = spe < 60;
+  const isBulky = (hp + def + spdef) > 230;
+  if (isSlow && isBulky) {
+    vec[26] = 1.0;
+  } else if (isSlow) {
+    vec[26] = 0.5;
+  }
+
+  // 28: Tailwind / Fast Synergy
+  const isFast = spe > 95;
+  const isOffensive = (atk > 90 || spatk > 90);
+  const isWindSetter = hasAbility(['prankster', 'gale-wings']) || (types.includes('flying') && spe > 90);
+  if (isWindSetter) vec[27] = 1.0;
+  else if (isFast && isOffensive) vec[27] = 0.8;
+  else if (isFast) vec[27] = 0.5;
+
+  // 29: Defensive Support & Intimidate
+  const hasIntimidate = hasAbility(['intimidate', 'friend-guard', 'telepathy']);
+  const isTank = hp > 85 && (def > 85 || spdef > 85);
+  if (hasIntimidate) vec[28] = 1.0;
+  else if (isTank) vec[28] = 0.6;
+
+  // 30: Redirection / Typing Immunity Support (Lightning Rod, Storm Drain, etc.)
+  const hasRedirection = hasAbility([
+    'lightning-rod', 'storm-drain', 'flash-fire', 
+    'volt-absorb', 'water-absorb', 'motor-drive', 
+    'levitate', 'sap-sipper', 'herbivore'
+  ]);
+  if (hasRedirection) vec[29] = 1.0;
+
+  return vec;
+};
+
+const getEmbeddingRecommendations = (activeTeamPokemonIds, allPkmn, ownedIds, filterOwnedOnly) => {
+  if (!activeTeamPokemonIds || activeTeamPokemonIds.length === 0) return [];
   
-  let score = 50;
+  // 1. Get the vectors for all Pokémon currently in the team
+  const activeVectors = activeTeamPokemonIds
+    .map(id => {
+      const p = allPkmn.find(pk => pk.id === id);
+      return p ? getPokemonFeatureVector(p) : null;
+    })
+    .filter(Boolean);
+    
+  if (activeVectors.length === 0) return [];
+  
+  // 2. Average the vectors of the active team to create a "team context vector"
+  const vectorDim = activeVectors[0].length;
+  const teamVector = new Array(vectorDim).fill(0);
+  for (let i = 0; i < vectorDim; i++) {
+    let sum = 0;
+    activeVectors.forEach(v => {
+      sum += v[i];
+    });
+    teamVector[i] = sum / activeVectors.length;
+  }
+  
+  // 3. Score all other Pokémon in the database against the team vector
+  const recommendations = [];
+  const activeTeamPokemons = activeTeamPokemonIds
+    .map(id => allPkmn.find(pk => pk.id === id))
+    .filter(Boolean);
+
+  allPkmn.forEach(p => {
+    // Avoid recommending Pokémon already on the team
+    if (activeTeamPokemonIds.includes(p.id)) return;
+    
+    // Avoid recommending Pokémon related to any Pokémon already on the team
+    const isRelated = activeTeamPokemons.some(teamP => arePokemonRelated(teamP.name, p.name));
+    if (isRelated) return;
+    
+    // Check if we should only recommend from owned collection
+    if (filterOwnedOnly && !ownedIds.includes(p.id)) return;
+    
+    const pVector = getPokemonFeatureVector(p);
+    
+    const score = cosineSimilarity(teamVector, pVector);
+    recommendations.push({
+      pokemon: p,
+      score: score
+    });
+  });
+  
+  // 4. Sort by highest similarity score
+  recommendations.sort((a, b) => b.score - a.score);
+  
+  // Return top 5 recommendations
+  return recommendations.slice(0, 5);
+};
+
+const analyzeSynergy = (squad) => {
+  if (!squad || squad.length === 0) return null;
+  
+  let score = 60;
   const pros = [];
   const cons = [];
   const warnings = [];
   
-  const types = squad.flatMap(p => p.types);
+  const getStat = (p, name) => p.stats?.find(s => s.name === name)?.value || 60;
+  
+  // 1. Type coverage
+  const types = squad.flatMap(p => p.types || []);
   const uniqueTypes = new Set(types);
   
   if (uniqueTypes.size >= 8) {
-    score += 15;
-    pros.push("Excellent type coverage (8+ unique types).");
+    score += 12;
+    pros.push(`Excellent type diversity with ${uniqueTypes.size} unique types on the team.`);
   } else if (uniqueTypes.size >= 5) {
-    score += 8;
-    pros.push("Good type coverage.");
+    score += 6;
+    pros.push(`Good type diversity with ${uniqueTypes.size} unique types.`);
   } else {
     score -= 10;
-    cons.push("Poor type coverage. Try adding diverse types.");
+    cons.push(`Low type diversity (${uniqueTypes.size} unique types). Consider adding different types to expand coverage.`);
   }
   
   const hasFire = types.includes('fire');
@@ -178,13 +832,15 @@ const analyzeSynergy = (squad) => {
   const hasGrass = types.includes('grass');
   if (hasFire && hasWater && hasGrass) {
     score += 12;
-    pros.push("Elemental Fire-Water-Grass Core active!");
+    pros.push("Elemental Core (Fire-Water-Grass) is fully active! Great defensive pivoting options.");
   } else {
     const missing = [];
     if (!hasFire) missing.push("Fire");
     if (!hasWater) missing.push("Water");
     if (!hasGrass) missing.push("Grass");
-    cons.push(`Missing elemental core. Consider: ${missing.join(', ')}.`);
+    if (squad.length >= 3) {
+      cons.push(`Missing Elemental Core. Try adding a ${missing.join('/')} type for standard switching synergy.`);
+    }
   }
 
   const hasSteel = types.includes('steel');
@@ -192,69 +848,185 @@ const analyzeSynergy = (squad) => {
   const hasFairy = types.includes('fairy');
   if (hasSteel && hasDragon && hasFairy) {
     score += 12;
-    pros.push("Fantasy Core (Dragon-Fairy-Steel) active!");
+    pros.push("Fantasy Core (Dragon-Fairy-Steel) is fully active! Superb defensive resistances.");
   }
 
-  const weaknesses = {};
-  const typeWeaknessChart = {
-    fire: ['water', 'ground', 'rock'],
-    water: ['electric', 'grass'],
-    grass: ['fire', 'ice', 'poison', 'flying', 'bug'],
-    electric: ['ground'],
-    normal: ['fighting'],
-    ice: ['fire', 'fighting', 'rock', 'steel'],
-    fighting: ['flying', 'psychic', 'fairy'],
-    poison: ['ground', 'psychic'],
-    ground: ['water', 'grass', 'ice'],
-    flying: ['electric', 'ice', 'rock'],
-    psychic: ['bug', 'ghost', 'dark'],
-    bug: ['fire', 'flying', 'rock'],
-    rock: ['water', 'grass', 'fighting', 'ground', 'steel'],
-    ghost: ['ghost', 'dark'],
-    dragon: ['ice', 'dragon', 'fairy'],
-    steel: ['fire', 'fighting', 'ground'],
-    fairy: ['poison', 'steel'],
-    dark: ['fighting', 'bug', 'fairy']
-  };
+  // 2. True Defensive Weakness Check
+  const sharedWeaknesses = [];
+  const quadWeaknesses = [];
 
-  squad.forEach(p => {
-    p.types.forEach(t => {
-      const weakList = typeWeaknessChart[t] || [];
-      weakList.forEach(w => {
-        weaknesses[w] = (weaknesses[w] || 0) + 1;
-      });
+  const ALL_18_TYPES = Object.keys(TYPE_CHART);
+  
+  ALL_18_TYPES.forEach(attackingType => {
+    let weakCount = 0;
+    let resistCount = 0;
+    
+    squad.forEach(p => {
+      const defenderTypes = p.types || [];
+      const mult = defenderTypes.reduce((multiplier, defType) => {
+        const row = TYPE_CHART[attackingType];
+        const val = row ? row[defType] : 1.0;
+        return multiplier * val;
+      }, 1.0);
+      
+      if (mult >= 4.0) {
+        quadWeaknesses.push({
+          type: attackingType,
+          pokemon: p.name,
+          message: `Extreme Weakness: ${p.name} is double-weak (4x) to ${attackingType.toUpperCase()}`
+        });
+        weakCount += 2;
+      } else if (mult > 1.0) {
+        weakCount++;
+      } else if (mult < 1.0) {
+        resistCount++;
+      }
     });
-  });
-
-  Object.keys(weaknesses).forEach(w => {
-    if (weaknesses[w] >= 3) {
-      score -= 8;
-      warnings.push(`Weakness: ${w.toUpperCase()} x${weaknesses[w]} members.`);
+    
+    if (weakCount >= 3 || (weakCount - resistCount >= 2)) {
+      sharedWeaknesses.push({
+        type: attackingType,
+        count: Math.floor(weakCount),
+        message: `Shared Weakness: Team has poor defense against ${attackingType.toUpperCase()} attacks (${Math.floor(weakCount)} members weak).`
+      });
     }
   });
 
+  if (quadWeaknesses.length > 0) {
+    quadWeaknesses.slice(0, 2).forEach(qw => {
+      score -= 5;
+      warnings.push({
+        type: qw.type,
+        isQuad: true,
+        message: qw.message
+      });
+    });
+  }
+
+  if (sharedWeaknesses.length > 0) {
+    sharedWeaknesses.slice(0, 3).forEach(sw => {
+      score -= 6;
+      warnings.push({
+        type: sw.type,
+        isQuad: false,
+        count: sw.count,
+        message: sw.message
+      });
+    });
+  }
+
+  // 3. Stats & Offensive Balance
   let totalHp = 0;
   let totalSpeed = 0;
-  let totalAtkSpAtk = 0;
-  
+  let totalAtk = 0;
+  let totalSpatk = 0;
+  let physicalAttackers = 0;
+  let specialAttackers = 0;
+  let supports = 0;
+
   squad.forEach(p => {
-    const hpVal = p.stats.find(s => s.name === 'hp')?.value || 60;
-    const speedVal = p.stats.find(s => s.name === 'speed')?.value || 60;
-    const atk = p.stats.find(s => s.name === 'attack')?.value || 60;
-    const spatk = p.stats.find(s => s.name === 'special-attack')?.value || 60;
+    const hp = getStat(p, 'hp');
+    const atk = getStat(p, 'attack');
+    const def = getStat(p, 'defense');
+    const spatk = getStat(p, 'special-attack');
+    const spdef = getStat(p, 'special-defense');
+    const spe = getStat(p, 'speed');
+
+    totalHp += hp;
+    totalSpeed += spe;
+    totalAtk += atk;
+    totalSpatk += spatk;
+
+    if (atk > 95 && atk > spatk) physicalAttackers++;
+    else if (spatk > 95 && spatk > atk) specialAttackers++;
     
-    totalHp += hpVal;
-    totalSpeed += speedVal;
-    totalAtkSpAtk += Math.max(atk, spatk);
+    const abilities = (p.abilities || []).map(a => a.toLowerCase());
+    const isSupportAbility = abilities.some(a => ['intimidate', 'friend-guard', 'follow-me', 'helper', 'prankster'].includes(a));
+    if (isSupportAbility || (hp + def + spdef > 240 && Math.max(atk, spatk) < 85)) {
+      supports++;
+    }
   });
 
   const avgHp = totalHp / squad.length;
   const avgSpeed = totalSpeed / squad.length;
-  const avgOffense = totalAtkSpAtk / squad.length;
+  const avgAtk = totalAtk / squad.length;
+  const avgSpatk = totalSpatk / squad.length;
+  const avgOffense = Math.max(avgAtk, avgSpatk);
 
-  if (avgHp >= 80) pros.push("High defensive bulk rating.");
-  if (avgSpeed >= 80) pros.push("Excellent speed tiers.");
-  if (avgOffense >= 85) pros.push("High offensive pressure.");
+  if (physicalAttackers > 0 && specialAttackers > 0) {
+    score += 6;
+    pros.push("Balanced offensive split (covers both physical and special sweepers).");
+  } else if (squad.length >= 3) {
+    if (physicalAttackers === 0 && specialAttackers > 0) {
+      score -= 4;
+      cons.push("Overly Special-biased. Walled by Special walls like Blissey.");
+    } else if (specialAttackers === 0 && physicalAttackers > 0) {
+      score -= 4;
+      cons.push("Overly Physical-biased. Vulnerable to Intimidate and Burn.");
+    }
+  }
+
+  if (avgHp >= 80) {
+    pros.push("High defensive bulk rating across the team.");
+  } else if (avgHp < 65 && squad.length >= 3) {
+    score -= 4;
+    cons.push("Team is relatively frail. Consider adding a bulky support or redirector.");
+  }
+
+  if (supports > 0) {
+    pros.push(`Active Support/Disruptor role (${supports} members).`);
+  } else if (squad.length >= 4) {
+    score -= 4;
+    cons.push("No dedicated support found (need Intimidate/redirection/prankster).");
+  }
+
+  // 4. VGC Core Synergies
+  let hasRainSetter = false;
+  let hasRainAbuser = false;
+  let hasSunSetter = false;
+  let hasSunAbuser = false;
+  let hasTrickRoomSetter = false;
+  let hasSlowAttacker = false;
+  let hasTailwindSetter = false;
+
+  squad.forEach(p => {
+    const abs = (p.abilities || []).map(a => a.toLowerCase());
+    const spe = getStat(p, 'speed');
+
+    if (abs.includes('drizzle')) hasRainSetter = true;
+    if (abs.some(a => ['swift-swim', 'rain-dish', 'hydration'].includes(a))) hasRainAbuser = true;
+
+    if (abs.includes('drought')) hasSunSetter = true;
+    if (abs.some(a => ['chlorophyll', 'solar-power'].includes(a))) hasSunAbuser = true;
+
+    if (spe < 55) hasSlowAttacker = true;
+    if (p.types.some(t => ['psychic', 'ghost'].includes(t)) && spe < 65 && (getStat(p, 'hp') + getStat(p, 'defense') + getStat(p, 'special-defense') > 220)) {
+      hasTrickRoomSetter = true;
+    }
+
+    if (abs.includes('prankster') || (p.types.includes('flying') && spe > 95)) {
+      hasTailwindSetter = true;
+    }
+  });
+
+  if (hasRainSetter && hasRainAbuser) {
+    score += 10;
+    pros.push("Active Rain Core (Drizzle + Swift Swim)! High synergy.");
+  }
+  if (hasSunSetter && hasSunAbuser) {
+    score += 10;
+    pros.push("Active Sun Core (Drought + Chlorophyll)! High synergy.");
+  }
+  if (hasTrickRoomSetter && hasSlowAttacker) {
+    score += 8;
+    pros.push("Active Trick Room option (Bulky Setter + Slow Attackers).");
+  } else if (hasSlowAttacker && !hasTrickRoomSetter && avgSpeed < 60 && squad.length >= 3) {
+    cons.push("Slow team without Trick Room Setter. Suggest adding a Trick Room setter.");
+  }
+  if (hasTailwindSetter && avgSpeed > 85) {
+    score += 6;
+    pros.push("Active Tailwind Speed Control core.");
+  }
 
   score = Math.max(10, Math.min(100, score));
 
@@ -274,7 +1046,7 @@ const analyzeSynergy = (squad) => {
       hp: Math.min(100, Math.round(avgHp)),
       speed: Math.min(100, Math.round(avgSpeed)),
       offense: Math.min(100, Math.round(avgOffense)),
-      coverage: Math.min(100, uniqueTypes.size * 5 + 10)
+      coverage: Math.min(100, Math.round(uniqueTypes.size * 5 + 10))
     }
   };
 };
@@ -348,9 +1120,202 @@ const calculateMatchup = (userSquad, npcTeamIds, allPkmn) => {
   return { winRate, advice, counters: counters.slice(0, 3), threats: threats.slice(0, 3) };
 };
 
+const MOVE_TYPES = {
+  // Grass
+  'energy ball': 'grass', 'giga drain': 'grass', 'leaf storm': 'grass', 'spore': 'grass', 'rage powder': 'grass', 'bullet seed': 'grass', 'wood hammer': 'grass', 'horn leech': 'grass', 'power whip': 'grass', 'grassy glide': 'grass', 'frenzy plant': 'grass', 'solar beam': 'grass', 'trailblaze': 'grass', 'giga-drain': 'grass', 'leaf-storm': 'grass', 'rage-powder': 'grass',
+  // Fire
+  'flamethrower': 'fire', 'fire blast': 'fire', 'will o wisp': 'fire', 'overheat': 'fire', 'flare blitz': 'fire', 'heat wave': 'fire', 'sunny day': 'fire', 'eruption': 'fire', 'fiery dance': 'fire', 'temper flare': 'fire', 'fire pledge': 'fire', 'blast burn': 'fire', 'will-o-wisp': 'fire', 'fire-blast': 'fire', 'flare-blitz': 'fire', 'heat-wave': 'fire',
+  // Water
+  'hydro pump': 'water', 'surf': 'water', 'scald': 'water', 'water spout': 'water', 'aqua jet': 'water', 'liquidation': 'water', 'muddy water': 'water', 'chilling water': 'water', 'flip turn': 'water', 'origin pulse': 'water', 'hydro cannon': 'water', 'water pledge': 'water', 'rain dance': 'water', 'hydro-pump': 'water', 'water-spout': 'water', 'aqua-jet': 'water', 'muddy-water': 'water', 'chilling-water': 'water', 'flip-turn': 'water',
+  // Electric
+  'thunderbolt': 'electric', 'thunder': 'electric', 'volt switch': 'electric', 'electroweb': 'electric', 'wild charge': 'electric', 'nuzzle': 'electric', 'thunder wave': 'electric', 'rising voltage': 'electric', 'parabolic charge': 'electric', 'discharge': 'electric', 'charge beam': 'electric', 'volt-switch': 'electric', 'wild-charge': 'electric', 'thunder-wave': 'electric',
+  // Ice
+  'ice beam': 'ice', 'blizzard': 'ice', 'haze': 'ice', 'icicle crash': 'ice', 'ice shard': 'ice', 'triple axel': 'ice', 'freeze dry': 'ice', 'snowscape': 'ice', 'aurora veil': 'ice', 'ice spinner': 'ice', 'ice-beam': 'ice', 'icicle-crash': 'ice', 'ice-shard': 'ice', 'freeze-dry': 'ice', 'aurora-veil': 'ice', 'ice-spinner': 'ice',
+  // Fighting
+  'close combat': 'fighting', 'drain punch': 'fighting', 'mach punch': 'fighting', 'sacred sword': 'fighting', 'body press': 'fighting', 'focus blast': 'fighting', 'aura sphere': 'fighting', 'superpower': 'fighting', 'low kick': 'fighting', 'detect': 'fighting', 'coaching': 'fighting', 'close-combat': 'fighting', 'drain-punch': 'fighting', 'mach-punch': 'fighting', 'body-press': 'fighting', 'focus-blast': 'fighting', 'aura-sphere': 'fighting',
+  // Poison
+  'sludge bomb': 'poison', 'sludge wave': 'poison', 'toxic': 'poison', 'gunk shot': 'poison', 'poison jab': 'poison', 'clear smog': 'poison', 'acid spray': 'poison', 'mortal spin': 'poison', 'toxic spikes': 'poison', 'sludge-bomb': 'poison', 'sludge-wave': 'poison', 'gunk-shot': 'poison', 'poison-jab': 'poison', 'clear-smog': 'poison',
+  // Ground
+  'earthquake': 'ground', 'earth power': 'ground', 'stomping tantrum': 'ground', 'high horse power': 'ground', 'scorch sands': 'ground', 'spikes': 'ground', 'sandstorm': 'ground', 'mud shot': 'ground', 'bulldoze': 'ground', 'earth-power': 'ground', 'stomping-tantrum': 'ground', 'high-horsepower': 'ground',
+  // Flying
+  'tailwind': 'flying', 'hurricane': 'flying', 'air slash': 'flying', 'brave bird': 'flying', 'roost': 'flying', 'dual wingbeat': 'flying', 'defog': 'flying', 'acrobatics': 'flying', 'dragon ascent': 'flying', 'bleakwind storm': 'flying', 'brave-bird': 'flying', 'dragon-ascent': 'flying',
+  // Psychic
+  'psychic': 'psychic', 'psyshock': 'psychic', 'trick room': 'psychic', 'expand force': 'psychic', 'calm mind': 'psychic', 'reflect': 'psychic', 'light screen': 'psychic', 'ally switch': 'psychic', 'imprison': 'psychic', 'lumina crash': 'psychic', 'psychic fangs': 'psychic', 'trick-room': 'psychic', 'calm-mind': 'psychic', 'light-screen': 'psychic',
+  // Bug
+  'u turn': 'bug', 'bug buzz': 'bug', 'struggle bug': 'bug', 'pounce': 'bug', 'lunge': 'bug', 'leech life': 'bug', 'quiver dance': 'bug', 'pollen puff': 'bug', 'u-turn': 'bug', 'bug-buzz': 'bug', 'struggle-bug': 'bug', 'leech-life': 'bug', 'quiver-dance': 'bug', 'pollen-puff': 'bug',
+  // Rock
+  'power gem': 'rock', 'rock slide': 'rock', 'stone edge': 'rock', 'stealth rock': 'rock', 'wide guard': 'rock', 'smack down': 'rock', 'rock tomb': 'rock', 'meteor beam': 'rock', 'rock-slide': 'rock', 'stone-edge': 'rock', 'stealth-rock': 'rock', 'wide-guard': 'rock',
+  // Ghost
+  'shadow ball': 'ghost', 'shadow sneak': 'ghost', 'astral barrage': 'ghost', 'night shade': 'ghost', 'destiny bond': 'ghost', 'curse': 'ghost', 'confuse ray': 'ghost', 'phantom force': 'ghost', 'poltergeist': 'ghost', 'hex': 'ghost', 'shadow-ball': 'ghost', 'shadow-sneak': 'ghost', 'night-shade': 'ghost', 'destiny-bond': 'ghost', 'phantom-force': 'ghost',
+  // Dragon
+  'draco meteor': 'dragon', 'dragon pulse': 'dragon', 'dragon dance': 'dragon', 'outrage': 'dragon', 'dragon claw': 'dragon', 'dragon tail': 'dragon', 'breaking swipe': 'dragon', 'scale shot': 'dragon', 'draco-meteor': 'dragon', 'dragon-pulse': 'dragon', 'dragon-dance': 'dragon', 'dragon-claw': 'dragon',
+  // Steel
+  'flash cannon': 'steel', 'iron head': 'steel', 'bullet punch': 'steel', 'make it rain': 'steel', 'steel beam': 'steel', 'heavy slam': 'steel', 'king shield': 'steel', 'gyro ball': 'steel', 'iron defense': 'steel', 'metal claw': 'steel', 'flash-cannon': 'steel', 'iron-head': 'steel', 'bullet-punch': 'steel', 'king-shield': 'steel',
+  // Fairy
+  'moonblast': 'fairy', 'dazzling gleam': 'fairy', 'play rough': 'fairy', 'spirit break': 'fairy', 'misty terrain': 'fairy', 'draining kiss': 'fairy', 'baby doll eyes': 'fairy', 'dazzling-gleam': 'fairy', 'play-rough': 'fairy', 'spirit-break': 'fairy',
+  // Dark
+  'snarl': 'dark', 'foul play': 'dark', 'dark pulse': 'dark', 'sucker punch': 'dark', 'knock off': 'dark', 'parting shot': 'dark', 'taunt': 'dark', 'lash out': 'dark', 'throat chop': 'dark', 'wicked blow': 'dark', 'ruination': 'dark', 'foul-play': 'dark', 'dark-pulse': 'dark', 'sucker-punch': 'dark', 'knock-off': 'dark', 'parting-shot': 'dark',
+  // Normal
+  'protect': 'normal', 'fake out': 'normal', 'extreme speed': 'normal', 'helping hand': 'normal', 'hyper voice': 'normal', 'yawn': 'normal', 'quick attack': 'normal', 'double edge': 'normal', 'facade': 'normal', 'slash': 'normal', 'tackle': 'normal', 'scratch': 'normal', 'growl': 'normal', 'tail whip': 'normal', 'swords dance': 'normal', 'recover': 'normal', 'whirlwind': 'normal', 'sing': 'normal', 'sonic boom': 'normal', 'disable': 'normal', 'pound': 'normal', 'fake-out': 'normal', 'extreme-speed': 'normal', 'helping-hand': 'normal', 'hyper-voice': 'normal', 'quick-attack': 'normal', 'double-edge': 'normal', 'swords-dance': 'normal'
+};
+
+const NATURES = [
+  { name: 'Adamant', increased: 'attack', decreased: 'special-attack' },
+  { name: 'Bashful', increased: null, decreased: null },
+  { name: 'Bold', increased: 'defense', decreased: 'attack' },
+  { name: 'Brave', increased: 'attack', decreased: 'speed' },
+  { name: 'Calm', increased: 'special-defense', decreased: 'attack' },
+  { name: 'Careful', increased: 'special-defense', decreased: 'special-attack' },
+  { name: 'Docile', increased: null, decreased: null },
+  { name: 'Gentle', increased: 'special-defense', decreased: 'defense' },
+  { name: 'Hardy', increased: null, decreased: null },
+  { name: 'Hasty', increased: 'speed', decreased: 'defense' },
+  { name: 'Impish', increased: 'defense', decreased: 'special-attack' },
+  { name: 'Jolly', increased: 'speed', decreased: 'special-attack' },
+  { name: 'Lax', increased: 'defense', decreased: 'special-defense' },
+  { name: 'Lonely', increased: 'attack', decreased: 'defense' },
+  { name: 'Mild', increased: 'special-attack', decreased: 'defense' },
+  { name: 'Modest', increased: 'special-attack', decreased: 'attack' },
+  { name: 'Naive', increased: 'speed', decreased: 'special-defense' },
+  { name: 'Naughty', increased: 'attack', decreased: 'special-defense' },
+  { name: 'Quiet', increased: 'special-attack', decreased: 'speed' },
+  { name: 'Quirky', increased: null, decreased: null },
+  { name: 'Rash', increased: 'special-attack', decreased: 'special-defense' },
+  { name: 'Relaxed', increased: 'defense', decreased: 'speed' },
+  { name: 'Sassy', increased: 'special-defense', decreased: 'speed' },
+  { name: 'Serious', increased: null, decreased: null },
+  { name: 'Timid', increased: 'speed', decreased: 'attack' }
+];
+
+const STAT_DISPLAY_NAMES = {
+  'hp': 'HP',
+  'attack': 'ATK',
+  'defense': 'DEF',
+  'special-attack': 'SPA',
+  'special-defense': 'SPD',
+  'speed': 'SPE'
+};
+
+const calculateLevel50Stat = (statName, baseValue, ev, natureName, pokemonName) => {
+  const evVal = parseInt(ev) || 0;
+  if (statName === 'hp') {
+    if (pokemonName && pokemonName.toLowerCase() === 'shedinja') {
+      return 1;
+    }
+    return Math.floor((2 * baseValue + 31 + Math.floor(evVal / 4)) * 0.5) + 60;
+  }
+
+  const nature = NATURES.find(n => n.name.toLowerCase() === natureName.toLowerCase());
+  let multiplier = 1.0;
+  if (nature) {
+    if (nature.increased === statName) multiplier = 1.1;
+    else if (nature.decreased === statName) multiplier = 0.9;
+  }
+
+  const baseCalc = Math.floor((2 * baseValue + 31 + Math.floor(evVal / 4)) * 0.5) + 5;
+  return Math.floor(baseCalc * multiplier);
+};
+
+const parseEvSpreadString = (spreadStr) => {
+  const evs = { hp: 0, attack: 0, defense: 0, 'special-attack': 0, 'special-defense': 0, speed: 0 };
+  if (!spreadStr) return evs;
+  const parts = spreadStr.split('/');
+  parts.forEach(part => {
+    const match = part.trim().match(/^(\d+)\s+(.+)$/);
+    if (match) {
+      const val = parseInt(match[1]);
+      const name = match[2].trim().toLowerCase();
+      if (name === 'hp') evs.hp = val;
+      else if (name === 'atk' || name === 'attack') evs.attack = val;
+      else if (name === 'def' || name === 'defense') evs.defense = val;
+      else if (name === 'spa' || name === 'special attack' || name === 'special-attack') evs['special-attack'] = val;
+      else if (name === 'spd' || name === 'special defense' || name === 'special-defense') evs['special-defense'] = val;
+      else if (name === 'spe' || name === 'speed') evs.speed = val;
+    }
+  });
+  return evs;
+};
+
+const getTop4Moves = (movesList) => {
+  if (!movesList || movesList.length === 0) return ['', '', '', ''];
+  const PRIORITY = [
+    'protect', 'fake out', 'spore', 'rage powder', 'follow me', 'tailwind', 'trick room',
+    'stealth rock', 'defog', 'rapid spin', 'roost', 'recover', 'will o wisp', 'thunder wave',
+    'swords dance', 'nasty plot', 'dragon dance', 'calm mind', 'bulk up', 'quiver dance',
+    'u turn', 'volt switch', 'flip turn', 'knock off', 'earthquake', 'close combat',
+    'draco meteor', 'outrage', 'dragon ascent', 'moonblast', 'play rough', 'thunderbolt',
+    'thunder', 'ice beam', 'flamethrower', 'fire blast', 'hydro pump', 'surf', 'scald',
+    'leaf storm', 'giga drain', 'sludge bomb', 'shadow ball', 'psyshock', 'psychic',
+    'stone edge', 'rock slide', 'iron head', 'flash cannon', 'bullet punch', 'extreme speed',
+    'sucker punch', 'shadow sneak', 'mach punch', 'aqua jet', 'body slam'
+  ];
+  
+  const formattedMoves = movesList.map(m => m.move.name.replaceAll('-', ' '));
+  const sorted = [...formattedMoves].sort((a, b) => {
+    const aIdx = PRIORITY.indexOf(a);
+    const bIdx = PRIORITY.indexOf(b);
+    const aPriority = aIdx === -1 ? 999 : aIdx;
+    const bPriority = bIdx === -1 ? 999 : bIdx;
+    return aPriority - bPriority;
+  });
+  
+  const selected = [];
+  for (const m of sorted) {
+    if (!selected.includes(m)) {
+      selected.push(m);
+    }
+    if (selected.length === 4) break;
+  }
+  while (selected.length < 4) {
+    selected.push('');
+  }
+  return selected;
+};
+
+const getHeldItemOptions = (pokemon) => {
+  const options = ['None'];
+  if (!pokemon) return options;
+
+  // Add Mega Stone if applicable
+  const megaStone = getMegaHeldItem ? getMegaHeldItem(pokemon.name) : null;
+  if (megaStone) {
+    options.push(megaStone);
+  }
+  
+  // Add suggested item
+  const suggested = getSuggestedItem ? getSuggestedItem(pokemon) : null;
+  if (suggested) {
+    suggested.split('/').forEach(item => {
+      const trimmed = item.trim();
+      if (trimmed && !options.includes(trimmed)) {
+        options.push(trimmed);
+      }
+    });
+  }
+  
+  // Add common VGC items
+  const common = [
+    'Leftovers', 'Life Orb', 'Focus Sash', 'Assault Vest',
+    'Choice Band', 'Choice Specs', 'Choice Scarf',
+    'Sitrus Berry', 'Lum Berry', 'Rocky Helmet',
+    'Safety Goggles', 'Heavy-Duty Boots', 'Eviolite',
+    'Weakness Policy', 'Expert Belt', 'Clear Amulet',
+    'Covert Cloak', 'Booster Energy', 'Light Clay', 'Air Balloon'
+  ];
+  
+  common.forEach(item => {
+    if (!options.includes(item)) {
+      options.push(item);
+    }
+  });
+  
+  return options;
+};
+
 export default function TrainerClient({ initialTrainer, allPokemon }) {
   const [trainer, setTrainer] = useState(initialTrainer);
   const [activeTab, setActiveTab] = useState('profile'); // profile | collection | simulator | matchups | settings | admin
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   
   // Profile edit settings
   const [displayName, setDisplayName] = useState(trainer.displayName);
@@ -370,7 +1335,7 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
   const [suggestArchetype, setSuggestArchetype] = useState('balanced'); // balanced | offense | defense
 
   // Custom team builder states
-  const [teams, setTeams] = useState([
+  const [teams, setTeams] = useState(initialTrainer.teams || [
     [null, null, null, null, null, null],
     [null, null, null, null, null, null],
     [null, null, null, null, null, null]
@@ -378,6 +1343,18 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
   const [activeTeamIdx, setActiveTeamIdx] = useState(0);
   const [showPokeSelector, setShowPokeSelector] = useState(false);
   const [activeSlotIdx, setActiveSlotIdx] = useState(null);
+  
+  // Custom builds states
+  const [builds, setBuilds] = useState({});
+  const [activeEditBuild, setActiveEditBuild] = useState(null); // { teamIdx, slotIdx, pokemon }
+  const [localBuild, setLocalBuild] = useState(null);
+  const [pokeApiDetail, setPokeApiDetail] = useState(null);
+  const [loadingPokeApi, setLoadingPokeApi] = useState(false);
+  const [focusedMoveIdx, setFocusedMoveIdx] = useState(null);
+  const [moveSearchQuery, setMoveSearchQuery] = useState(['', '', '', '']);
+  const [activeSelectMoveSlot, setActiveSelectMoveSlot] = useState(null);
+  const [moveGroupSearchQuery, setMoveGroupSearchQuery] = useState('');
+  const [customMoveTypes, setCustomMoveTypes] = useState({});
   
   // AI strategist coach states
   const [aiReport, setAiReport] = useState(null);
@@ -388,6 +1365,11 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
   const [adminTrainers, setAdminTrainers] = useState([]);
   const [adminLoading, setAdminLoading] = useState(false);
   const [adminError, setAdminError] = useState('');
+
+  // Friends list states
+  const [friends, setFriends] = useState([]);
+  const [loadingFriends, setLoadingFriends] = useState(false);
+  const [selectedFriend, setSelectedFriend] = useState(null);
 
   // Type matchups graph states
   const [selectedGraphType, setSelectedGraphType] = useState('fire');
@@ -407,23 +1389,192 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
         } catch (e) {
           console.error("Failed to parse trainer teams", e);
         }
+      } else if (trainer.teams) {
+        setTeams(trainer.teams);
       }
     }
   }, [trainer.id || trainer._id]);
+
+  // Load saved custom builds from local storage on mount
+  useEffect(() => {
+    const trainerId = trainer.id || trainer._id;
+    if (typeof window !== 'undefined' && trainerId) {
+      const savedBuilds = localStorage.getItem(`trainer_builds_${trainerId}`);
+      if (savedBuilds) {
+        try {
+          setBuilds(JSON.parse(savedBuilds));
+        } catch (e) {
+          console.error("Failed to parse trainer builds", e);
+        }
+      }
+    }
+  }, [trainer.id || trainer._id]);
+
+  // Load build to local editing copy when activeEditBuild changes
+  useEffect(() => {
+    if (activeEditBuild) {
+      const buildKey = `${activeEditBuild.teamIdx}_${activeEditBuild.slotIdx}`;
+      const currentBuild = builds[buildKey] || {
+        ability: activeEditBuild.pokemon.abilities[0] || '',
+        heldItem: getSuggestedItem ? getSuggestedItem(activeEditBuild.pokemon) : 'None',
+        nature: getSuggestedNature ? getSuggestedNature(activeEditBuild.pokemon) : 'Serious',
+        evs: getSuggestedEvSpread && parseEvSpreadString ? parseEvSpreadString(getSuggestedEvSpread(activeEditBuild.pokemon)) : { hp: 0, attack: 0, defense: 0, 'special-attack': 0, 'special-defense': 0, speed: 0 },
+        moves: ['', '', '', '']
+      };
+      setLocalBuild(JSON.parse(JSON.stringify(currentBuild)));
+      setMoveSearchQuery(currentBuild.moves.map(m => m || ''));
+    } else {
+      setLocalBuild(null);
+      setMoveSearchQuery(['', '', '', '']);
+      setActiveSelectMoveSlot(null);
+      setMoveGroupSearchQuery('');
+    }
+  }, [activeEditBuild, builds]);
+
+  // Fetch detailed PokeAPI data when modal opens (for moves autocomplete)
+  useEffect(() => {
+    if (!activeEditBuild) {
+      setPokeApiDetail(null);
+      return;
+    }
+
+    const fetchPokeDetails = async () => {
+      setLoadingPokeApi(true);
+      try {
+        const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${activeEditBuild.pokemon.id}`);
+        if (res.ok) {
+          const detail = await res.json();
+          setPokeApiDetail(detail);
+
+          // Pre-populate moves if they are all empty
+          setLocalBuild(prev => {
+            if (prev && prev.moves.every(m => !m)) {
+              const suggestedMoves = getTop4Moves(detail.moves);
+              setMoveSearchQuery(suggestedMoves);
+              return {
+                ...prev,
+                moves: suggestedMoves
+              };
+            }
+            return prev;
+          });
+        }
+      } catch (e) {
+        console.error("Failed to fetch PokeAPI details", e);
+      } finally {
+        setLoadingPokeApi(false);
+      }
+    };
+
+    fetchPokeDetails();
+  }, [activeEditBuild]);
+
+  // Fetch unknown move types in background for element grouping
+  useEffect(() => {
+    if (!pokeApiDetail) return;
+    
+    const unknownMoves = pokeApiDetail.moves.filter(m => {
+      const name = m.move.name.replaceAll('-', ' ');
+      return !MOVE_TYPES[name] && !customMoveTypes[name];
+    });
+    
+    if (unknownMoves.length === 0) return;
+    
+    const fetchUnknown = async () => {
+      const newTypes = {};
+      try {
+        const batchSize = 15;
+        for (let i = 0; i < unknownMoves.length; i += batchSize) {
+          const batch = unknownMoves.slice(i, i + batchSize);
+          await Promise.all(batch.map(async (m) => {
+            try {
+              const res = await fetch(m.move.url);
+              if (res.ok) {
+                const data = await res.json();
+                const name = m.move.name.replaceAll('-', ' ');
+                newTypes[name] = data.type.name;
+              }
+            } catch (e) {
+              console.error("Failed to fetch move type in background", e);
+            }
+          }));
+        }
+      } finally {
+        if (Object.keys(newTypes).length > 0) {
+          setCustomMoveTypes(prev => ({ ...prev, ...newTypes }));
+        }
+      }
+    };
+    
+    fetchUnknown();
+  }, [pokeApiDetail]);
+
+  // Fetch other trainers as friends when tab is active
+  useEffect(() => {
+    if (activeTab === 'friends') {
+      const fetchFriends = async () => {
+        setLoadingFriends(true);
+        try {
+          const res = await fetch('/api/trainer/list');
+          const data = await res.json();
+          if (res.ok) {
+            setFriends(data.trainers || []);
+          }
+        } catch (e) {
+          console.error("Failed to fetch friends list", e);
+        } finally {
+          setLoadingFriends(false);
+        }
+      };
+      fetchFriends();
+      setSelectedFriend(null);
+    }
+  }, [activeTab]);
   
-  const handleSaveTeams = (newTeams) => {
+  const handleSaveTeams = async (newTeams) => {
     setTeams(newTeams);
     const trainerId = trainer.id || trainer._id;
     if (typeof window !== 'undefined' && trainerId) {
       localStorage.setItem(`trainer_teams_${trainerId}`, JSON.stringify(newTeams));
     }
     setAiReport(null); // Reset AI report when team changes
+
+    // Persist to database
+    try {
+      await fetch('/api/trainer/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teams: newTeams }),
+      });
+    } catch (e) {
+      console.error("Failed to save teams to database", e);
+    }
   };
 
   const handleAddPokemonToSlot = (pokemonId) => {
     const newTeams = [...teams];
     newTeams[activeTeamIdx][activeSlotIdx] = pokemonId;
     handleSaveTeams(newTeams);
+
+    // Initialize default build
+    const p = allPokemon.find(item => item.id === pokemonId);
+    if (p) {
+      const trainerId = trainer.id || trainer._id;
+      const key = `${activeTeamIdx}_${activeSlotIdx}`;
+      const defaultBuild = {
+        ability: p.abilities[0] || '',
+        heldItem: getSuggestedItem ? getSuggestedItem(p) : '',
+        nature: getSuggestedNature ? getSuggestedNature(p) : 'Serious',
+        evs: getSuggestedEvSpread && parseEvSpreadString ? parseEvSpreadString(getSuggestedEvSpread(p)) : { hp: 0, attack: 0, defense: 0, 'special-attack': 0, 'special-defense': 0, speed: 0 },
+        moves: ['', '', '', '']
+      };
+      const updatedBuilds = { ...builds, [key]: defaultBuild };
+      setBuilds(updatedBuilds);
+      if (typeof window !== 'undefined' && trainerId) {
+        localStorage.setItem(`trainer_builds_${trainerId}`, JSON.stringify(updatedBuilds));
+      }
+    }
+
     setShowPokeSelector(false);
     setActiveSlotIdx(null);
   };
@@ -432,6 +1583,16 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
     const newTeams = [...teams];
     newTeams[activeTeamIdx][slotIdx] = null;
     handleSaveTeams(newTeams);
+
+    // Clean up build for this slot
+    const trainerId = trainer.id || trainer._id;
+    const key = `${activeTeamIdx}_${slotIdx}`;
+    const updatedBuilds = { ...builds };
+    delete updatedBuilds[key];
+    setBuilds(updatedBuilds);
+    if (typeof window !== 'undefined' && trainerId) {
+      localStorage.setItem(`trainer_builds_${trainerId}`, JSON.stringify(updatedBuilds));
+    }
   };
 
   const handleRunAiAnalysis = () => {
@@ -553,6 +1714,14 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
   const suggestionResult = getTeamSuggestions(trainer.ownedPokemon, allPokemon, suggestScope === 'all', suggestFormat, suggestArchetype);
   const suggestedTeam = suggestionResult ? suggestionResult.pokemons : [];
 
+  const activeTeamIdsForRec = (teams[activeTeamIdx] || []).filter(Boolean);
+  const aiRecommendedPartners = getEmbeddingRecommendations(
+    activeTeamIdsForRec, 
+    allPokemon, 
+    trainer.ownedPokemon, 
+    true
+  );
+
   // Compute synergy for the currently active custom team
   const activeTeamMembers = (teams[activeTeamIdx] || [])
     .filter(Boolean)
@@ -617,7 +1786,7 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
       }
 
       setTrainer(data.trainer);
-      setEditSuccess('Profile updated successfully!');
+      alert('Profile updated successfully!');
       router.refresh();
     } catch (err) {
       setEditError(err.message);
@@ -725,6 +1894,15 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
           </button>
         )}
 
+        {!isAdmin && (
+          <button 
+            className={`trainer-nav-item ${activeTab === 'friends' ? 'active' : ''}`}
+            onClick={() => setActiveTab('friends')}
+          >
+            <i className="fa-solid fa-user-group"></i> Friends
+          </button>
+        )}
+
         {isAdmin && (
           <button 
             className={`trainer-nav-item ${activeTab === 'admin' ? 'active' : ''}`}
@@ -772,11 +1950,6 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
                   <span><i className="fa-solid fa-file-invoice"></i> {isAdmin ? 0 : trainer.ownedPokemon.length} Entries</span>
                 </div>
               </div>
-              {!isAdmin && (
-                <button className="btn-login" style={{ background: '#ffffff', color: 'var(--text-primary)', border: '1px solid var(--border-color)', height: '40px', padding: '0 1.2rem' }} onClick={() => setActiveTab('settings')}>
-                  Edit Profile
-                </button>
-              )}
             </div>
 
             {!isAdmin && (
@@ -823,7 +1996,20 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
                       const p = id ? allPokemon.find(item => item.id === id) : null;
                       if (p) {
                         return (
-                          <div key={slotIdx} className="vanguard-card" style={{ position: 'relative' }}>
+                          <div 
+                            key={slotIdx} 
+                            className="vanguard-card" 
+                            style={{ position: 'relative', cursor: 'pointer' }}
+                            onClick={() => {
+                              setActiveSelectMoveSlot(null);
+                              setMoveGroupSearchQuery('');
+                              setActiveEditBuild({
+                                teamIdx: activeTeamIdx,
+                                slotIdx,
+                                pokemon: p
+                              });
+                            }}
+                          >
                             <button 
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -867,6 +2053,56 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
                                 </div>
                               </div>
                             </div>
+                            
+                            {/* Custom Build badges */}
+                            {(() => {
+                              const buildKey = `${activeTeamIdx}_${slotIdx}`;
+                              const b = builds[buildKey];
+                              if (b) {
+                                const activeMoves = b.moves.filter(Boolean);
+                                return (
+                                  <div className="slot-build-badges" onClick={(e) => e.stopPropagation()}>
+                                    <div className="slot-badge-title-row">
+                                      <span>Build Details</span>
+                                      <span style={{ color: '#10b981', fontSize: '0.62rem' }}>Click card to edit</span>
+                                    </div>
+                                    <div className="slot-badge-list">
+                                      {b.ability && <span className="slot-build-badge slot-badge-ability" title={`Ability: ${b.ability}`}>{b.ability}</span>}
+                                      {b.heldItem && <span className="slot-build-badge slot-badge-item" title={`Item: ${b.heldItem}`}>{b.heldItem}</span>}
+                                      {b.nature && <span className="slot-build-badge slot-badge-nature" title={`Nature: ${b.nature}`}>{b.nature}</span>}
+                                      {activeMoves.map((m, mIdx) => {
+                                        const actualMoveIdx = b.moves.indexOf(m);
+                                        return (
+                                          <span 
+                                            key={mIdx} 
+                                            className="slot-build-badge slot-badge-move" 
+                                            title={`Click to change: ${m}`}
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setActiveSelectMoveSlot(actualMoveIdx);
+                                              setMoveGroupSearchQuery('');
+                                              setActiveEditBuild({
+                                                teamIdx: activeTeamIdx,
+                                                slotIdx,
+                                                pokemon: p
+                                              });
+                                            }}
+                                            style={{ cursor: 'pointer' }}
+                                          >
+                                            {m}
+                                          </span>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                );
+                              }
+                              return (
+                                <div className="slot-build-badges" style={{ borderTop: 'none', paddingColor: 'transparent', color: 'var(--text-secondary)', fontSize: '0.65rem', fontStyle: 'italic', marginTop: '0.3rem' }}>
+                                  Click to customize build (ability, item, stats)
+                                </div>
+                              );
+                            })()}
                           </div>
                         );
                       } else {
@@ -941,6 +2177,60 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
                       </div>
                       
                       <div style={{ overflowY: 'auto', flexGrow: 1, paddingRight: '0.5rem' }}>
+                        {/* AI Recommended Partners based on current team embeddings */}
+                        {aiRecommendedPartners.length > 0 && (
+                          <div style={{ marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border-color)' }}>
+                            <h4 style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                              <i className="fa-solid fa-wand-magic-sparkles" style={{ color: 'var(--primary-color)' }}></i> AI Recommended Partners
+                            </h4>
+                            <div style={{ display: 'flex', gap: '0.8rem', overflowX: 'auto', paddingBottom: '0.4rem', scrollbarWidth: 'thin' }}>
+                              {aiRecommendedPartners.map(({ pokemon: p, score }) => {
+                                const matchPercentage = Math.round(score * 100);
+                                return (
+                                  <div 
+                                    key={`rec-${p.id}`}
+                                    onClick={() => handleAddPokemonToSlot(p.id)}
+                                    style={{
+                                      padding: '0.6rem',
+                                      border: '1.5px solid rgba(184, 35, 28, 0.25)',
+                                      borderRadius: '12px',
+                                      textAlign: 'center',
+                                      cursor: 'pointer',
+                                      background: '#ffffff',
+                                      minWidth: '100px',
+                                      flexShrink: 0,
+                                      boxShadow: '0 2px 8px rgba(184, 35, 28, 0.04)',
+                                      position: 'relative'
+                                    }}
+                                  >
+                                    <span style={{ 
+                                      position: 'absolute', 
+                                      top: '5px', 
+                                      right: '6px', 
+                                      fontSize: '0.65rem', 
+                                      fontWeight: 800, 
+                                      background: 'var(--primary-light)', 
+                                      color: 'var(--primary-color)',
+                                      padding: '0.1rem 0.3rem',
+                                      borderRadius: '4px'
+                                    }}>
+                                      {matchPercentage}%
+                                    </span>
+                                    <img 
+                                      src={`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${p.id}.png`}
+                                      alt={p.name} 
+                                      style={{ width: '40px', height: '40px', objectFit: 'contain', margin: '0.4rem auto 0.1rem' }} 
+                                    />
+                                    <h5 style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'capitalize', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                      {p.name}
+                                    </h5>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
                         {ownedPokemonDetails.length > 0 ? (
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '0.8rem' }}>
                             {ownedPokemonDetails.map(p => {
@@ -984,6 +2274,510 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
                           </div>
                         )}
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Build Editor Modal */}
+                {activeEditBuild && localBuild && (
+                  <div className="build-modal-overlay" onClick={() => setActiveEditBuild(null)}>
+                    <div 
+                      className="build-modal-container" 
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        '--header-theme-rgb': activeEditBuild.pokemon.types[0] === 'fire' ? '238, 129, 48' :
+                                              activeEditBuild.pokemon.types[0] === 'water' ? '99, 144, 240' :
+                                              activeEditBuild.pokemon.types[0] === 'grass' ? '122, 199, 76' :
+                                              activeEditBuild.pokemon.types[0] === 'electric' ? '247, 208, 44' :
+                                              activeEditBuild.pokemon.types[0] === 'ice' ? '150, 217, 214' :
+                                              activeEditBuild.pokemon.types[0] === 'fighting' ? '194, 46, 40' :
+                                              activeEditBuild.pokemon.types[0] === 'poison' ? '163, 62, 161' :
+                                              activeEditBuild.pokemon.types[0] === 'ground' ? '226, 191, 101' :
+                                              activeEditBuild.pokemon.types[0] === 'flying' ? '169, 143, 243' :
+                                              activeEditBuild.pokemon.types[0] === 'psychic' ? '249, 85, 135' :
+                                              activeEditBuild.pokemon.types[0] === 'bug' ? '166, 185, 26' :
+                                              activeEditBuild.pokemon.types[0] === 'rock' ? '182, 161, 54' :
+                                              activeEditBuild.pokemon.types[0] === 'ghost' ? '115, 87, 151' :
+                                              activeEditBuild.pokemon.types[0] === 'dragon' ? '111, 53, 252' :
+                                              activeEditBuild.pokemon.types[0] === 'steel' ? '183, 183, 206' :
+                                              activeEditBuild.pokemon.types[0] === 'fairy' ? '214, 133, 173' :
+                                              activeEditBuild.pokemon.types[0] === 'dark' ? '112, 87, 70' : '184, 35, 28'
+                      }}
+                    >
+                      {/* Header */}
+                      <div className="build-modal-header">
+                        <div className="build-modal-header-info">
+                          <img src={activeEditBuild.pokemon.image} alt={activeEditBuild.pokemon.name} className="build-modal-header-img" />
+                          <div className="build-modal-header-title">
+                            <h3 style={{ textTransform: 'capitalize' }}>{activeEditBuild.pokemon.name}</h3>
+                            <p>Slot #{activeEditBuild.slotIdx + 1} &bull; Team {activeEditBuild.teamIdx + 1}</p>
+                          </div>
+                        </div>
+                        <button className="build-modal-close-btn" onClick={() => setActiveEditBuild(null)}>
+                          <i className="fa-solid fa-xmark"></i>
+                        </button>
+                      </div>
+
+                      {/* Content */}
+                      <div className="build-modal-content">
+                        <div className="build-modal-grid">
+                          
+                          {/* Left Column: Build details */}
+                          <div>
+                            <div className="build-section-title">
+                              <span>Pokémon Setup</span>
+                              <button 
+                                type="button" 
+                                className="build-suggest-btn"
+                                onClick={() => {
+                                  const p = activeEditBuild.pokemon;
+                                  const suggestedItem = getSuggestedItem ? getSuggestedItem(p) : '';
+                                  const suggestedNature = getSuggestedNature ? getSuggestedNature(p) : 'Serious';
+                                  const parsedEvs = parseEvSpreadString(getSuggestedEvSpread ? getSuggestedEvSpread(p) : '');
+                                  
+                                  let suggestedMoves = ['', '', '', ''];
+                                  if (pokeApiDetail && pokeApiDetail.moves) {
+                                    suggestedMoves = getTop4Moves(pokeApiDetail.moves);
+                                  }
+
+                                  setLocalBuild({
+                                    ...localBuild,
+                                    ability: p.abilities[0] || '',
+                                    heldItem: suggestedItem,
+                                    nature: suggestedNature,
+                                    evs: parsedEvs,
+                                    moves: suggestedMoves
+                                  });
+                                  setMoveSearchQuery(suggestedMoves);
+                                  setActiveSelectMoveSlot(null);
+                                  setMoveGroupSearchQuery('');
+                                }}
+                              >
+                                <i className="fa-solid fa-wand-magic-sparkles"></i> Load Recommended Build
+                              </button>
+                            </div>
+
+                            {/* Ability Selector */}
+                            <div className="build-field">
+                              <label>Ability</label>
+                              <select 
+                                className="build-select"
+                                value={localBuild.ability}
+                                onChange={(e) => setLocalBuild({ ...localBuild, ability: e.target.value })}
+                                style={{ textTransform: 'capitalize' }}
+                              >
+                                {activeEditBuild.pokemon.abilities.map(ab => (
+                                  <option key={ab} value={ab} style={{ textTransform: 'capitalize' }}>
+                                    {ab.replaceAll('-', ' ')}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            {/* Held Item Select Dropdown */}
+                            <div className="build-field">
+                              <label>Held Item</label>
+                              <select 
+                                className="build-select"
+                                value={localBuild.heldItem || 'None'}
+                                onChange={(e) => setLocalBuild({ ...localBuild, heldItem: e.target.value })}
+                              >
+                                {(() => {
+                                  const options = getHeldItemOptions(activeEditBuild.pokemon);
+                                  if (localBuild.heldItem && !options.includes(localBuild.heldItem)) {
+                                    options.push(localBuild.heldItem);
+                                  }
+                                  return options.map(item => (
+                                    <option key={item} value={item}>
+                                      {item}
+                                    </option>
+                                  ));
+                                })()}
+                              </select>
+                            </div>
+
+                            {/* 4 Moves Interactive Slots */}
+                            <div className="build-field" style={{ marginBottom: 0 }}>
+                              <label style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span>Moves Customization (Up to 4)</span>
+                                {loadingPokeApi && <span style={{ textTransform: 'none', fontSize: '0.72rem', color: 'var(--text-secondary)' }}><i className="fa-solid fa-spinner fa-spin"></i> Loading learnset...</span>}
+                              </label>
+                              
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem', marginTop: '0.5rem', marginBottom: '1rem' }}>
+                                {[0, 1, 2, 3].map((moveIdx) => {
+                                  const moveName = localBuild.moves[moveIdx];
+                                  const normalizedMoveName = moveName ? moveName.toLowerCase() : '';
+                                  const moveType = MOVE_TYPES[normalizedMoveName] || customMoveTypes[normalizedMoveName] || 'normal';
+                                  const typeColor = TYPE_TRANSLATIONS[moveType]?.color || '#999';
+                                  const isSelected = activeSelectMoveSlot === moveIdx;
+
+                                  return (
+                                    <button
+                                      key={moveIdx}
+                                      type="button"
+                                      onClick={() => {
+                                        setActiveSelectMoveSlot(isSelected ? null : moveIdx);
+                                      }}
+                                      style={{
+                                        padding: '0.8rem 1rem',
+                                        borderRadius: '12px',
+                                        border: isSelected ? '2px solid rgba(var(--header-theme-rgb, 184, 35, 28), 1)' : '1px solid var(--border-color)',
+                                        background: moveName ? `${typeColor}15` : '#ffffff',
+                                        color: moveName ? 'var(--text-primary)' : 'var(--text-secondary)',
+                                        textAlign: 'left',
+                                        cursor: 'pointer',
+                                        fontSize: '0.9rem',
+                                        fontWeight: 700,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        transition: 'all 0.15s'
+                                      }}
+                                    >
+                                      <span style={{ textTransform: 'capitalize', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                        {moveName ? (
+                                          <>
+                                            <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: typeColor }}></span>
+                                            {moveName}
+                                          </>
+                                        ) : (
+                                          `Select Move ${moveIdx + 1}`
+                                        )}
+                                      </span>
+                                      <i className={`fa-solid ${isSelected ? 'fa-chevron-up' : 'fa-chevron-down'}`} style={{ fontSize: '0.75rem', opacity: 0.6 }}></i>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+
+                              {/* Grouped learnable moves panel */}
+                              {activeSelectMoveSlot !== null && (
+                                <div style={{
+                                  background: '#f8fafc',
+                                  borderRadius: '16px',
+                                  padding: '1.2rem',
+                                  border: '1px solid var(--border-color)',
+                                  maxHeight: '320px',
+                                  overflowY: 'auto',
+                                  marginBottom: '1rem'
+                                }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem' }}>
+                                    <h4 style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                                      Select Move for Slot #{activeSelectMoveSlot + 1}
+                                    </h4>
+                                    <button 
+                                      type="button" 
+                                      onClick={() => {
+                                        setActiveSelectMoveSlot(null);
+                                        setMoveGroupSearchQuery('');
+                                      }}
+                                      style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700 }}
+                                    >
+                                      Close Panel
+                                    </button>
+                                  </div>
+                                  
+                                  {/* Filter Input with magnifying glass icon */}
+                                  <div style={{ position: 'relative', marginBottom: '1rem' }}>
+                                    <i className="fa-solid fa-magnifying-glass" style={{
+                                      position: 'absolute',
+                                      left: '12px',
+                                      top: '50%',
+                                      transform: 'translateY(-50%)',
+                                      color: 'var(--text-secondary)',
+                                      fontSize: '0.85rem',
+                                      pointerEvents: 'none'
+                                    }}></i>
+                                    <input 
+                                      type="text" 
+                                      placeholder="Search learnable moves..."
+                                      className="build-input"
+                                      value={moveGroupSearchQuery}
+                                      onChange={(e) => setMoveGroupSearchQuery(e.target.value)}
+                                      style={{ padding: '0.5rem 0.8rem 0.5rem 2.2rem', fontSize: '0.85rem', width: '100%' }}
+                                    />
+                                  </div>
+
+                                  {(() => {
+                                    // Deduplicate learnable moves
+                                    const uniqueLearnableMoves = [];
+                                    if (pokeApiDetail && pokeApiDetail.moves) {
+                                      const seen = new Set();
+                                      pokeApiDetail.moves.forEach(m => {
+                                        const name = m.move.name.replaceAll('-', ' ');
+                                        if (!seen.has(name)) {
+                                          seen.add(name);
+                                          uniqueLearnableMoves.push(name);
+                                        }
+                                      });
+                                    }
+                                    
+                                    // Group moves by type
+                                    const groupedMoves = {};
+                                    uniqueLearnableMoves.forEach(move => {
+                                      const type = MOVE_TYPES[move.toLowerCase()] || customMoveTypes[move.toLowerCase()] || 'normal';
+                                      if (!groupedMoves[type]) {
+                                        groupedMoves[type] = [];
+                                      }
+                                      groupedMoves[type].push(move);
+                                    });
+
+                                    const sortedTypes = Object.keys(groupedMoves).sort();
+                                    let hasResults = false;
+
+                                    const typeSections = sortedTypes.map(type => {
+                                      // Do not filter out the current move of the active slot, so the user can see it highlighted,
+                                      // but filter out moves that are selected in OTHER slots.
+                                      const filteredMoves = groupedMoves[type].filter(m => {
+                                        const isMatch = !moveGroupSearchQuery || m.toLowerCase().includes(moveGroupSearchQuery.toLowerCase());
+                                        const isSelectedElsewhere = localBuild.moves.some((selectedMove, idx) => 
+                                          idx !== activeSelectMoveSlot && selectedMove.toLowerCase() === m.toLowerCase()
+                                        );
+                                        return isMatch && !isSelectedElsewhere;
+                                      });
+                                      
+                                      if (filteredMoves.length === 0) return null;
+                                      hasResults = true;
+                                      
+                                      const typeColor = TYPE_TRANSLATIONS[type]?.color || '#999';
+                                      const typeName = TYPE_TRANSLATIONS[type]?.name || type;
+
+                                      return (
+                                        <div key={type} style={{ marginBottom: '1.2rem' }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.6rem', marginTop: '0.6rem' }}>
+                                            <span style={{
+                                              display: 'inline-block',
+                                              padding: '0.2rem 0.6rem',
+                                              borderRadius: '6px',
+                                              backgroundColor: typeColor,
+                                              color: '#fff',
+                                              fontSize: '0.65rem',
+                                              fontWeight: 800,
+                                              textTransform: 'uppercase',
+                                              letterSpacing: '0.05em',
+                                              boxShadow: '0 2px 4px rgba(0,0,0,0.08)'
+                                            }}>
+                                              {typeName}
+                                            </span>
+                                            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                                              {filteredMoves.length} {filteredMoves.length === 1 ? 'move' : 'moves'}
+                                            </span>
+                                          </div>
+                                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                                            {filteredMoves.sort().map(move => {
+                                              const isCurrentMoveOfSlot = move.toLowerCase() === (localBuild.moves[activeSelectMoveSlot] || '').toLowerCase();
+                                              return (
+                                                <button
+                                                  key={move}
+                                                  type="button"
+                                                  onClick={() => {
+                                                    const newMoves = [...localBuild.moves];
+                                                    newMoves[activeSelectMoveSlot] = move;
+                                                    setLocalBuild({ ...localBuild, moves: newMoves });
+                                                    
+                                                    const newQueries = [...moveSearchQuery];
+                                                    newQueries[activeSelectMoveSlot] = move;
+                                                    setMoveSearchQuery(newQueries);
+                                                    
+                                                    setActiveSelectMoveSlot(null);
+                                                    setMoveGroupSearchQuery('');
+                                                  }}
+                                                  style={{
+                                                    '--type-color': typeColor,
+                                                    '--type-color-bg': isCurrentMoveOfSlot ? typeColor : `${typeColor}08`,
+                                                    '--type-color-hover': isCurrentMoveOfSlot ? typeColor : `${typeColor}20`,
+                                                    padding: '0.4rem 0.8rem',
+                                                    borderRadius: '8px',
+                                                    border: isCurrentMoveOfSlot ? `1px solid ${typeColor}` : `1px solid ${typeColor}30`,
+                                                    background: isCurrentMoveOfSlot ? typeColor : `${typeColor}08`,
+                                                    color: isCurrentMoveOfSlot ? '#ffffff' : 'var(--text-primary)',
+                                                    fontSize: '0.8rem',
+                                                    fontWeight: 700,
+                                                    textTransform: 'capitalize',
+                                                    cursor: 'pointer',
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.3rem',
+                                                    transition: 'all 0.15s'
+                                                  }}
+                                                  className={`move-option-button ${isCurrentMoveOfSlot ? 'active' : ''}`}
+                                                >
+                                                  {move}
+                                                  {isCurrentMoveOfSlot && <i className="fa-solid fa-check" style={{ fontSize: '0.7rem', marginLeft: '0.2rem' }}></i>}
+                                                </button>
+                                              );
+                                            })}
+                                          </div>
+                                        </div>
+                                      );
+                                    });
+
+                                    return hasResults ? typeSections : (
+                                      <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                                        No matching moves found.
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Right Column: Stats & EVs */}
+                          <div>
+                            <div className="build-section-title">
+                              <span>Stats & EVs Allocation</span>
+                            </div>
+
+                            {/* Nature Dropdown */}
+                            <div className="build-field">
+                              <label>Nature</label>
+                              <select 
+                                className="build-select"
+                                value={localBuild.nature}
+                                onChange={(e) => setLocalBuild({ ...localBuild, nature: e.target.value })}
+                              >
+                                {NATURES.map(n => {
+                                  let modText = 'Neutral';
+                                  if (n.increased) {
+                                    const inc = STAT_DISPLAY_NAMES[n.increased];
+                                    const dec = STAT_DISPLAY_NAMES[n.decreased];
+                                    modText = `+${inc}, -${dec}`;
+                                  }
+                                  return (
+                                    <option key={n.name} value={n.name}>
+                                      {n.name} ({modText})
+                                    </option>
+                                  );
+                                })}
+                              </select>
+                            </div>
+
+                            {/* EV sliders and calculated stats */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                              {activeEditBuild.pokemon.stats.map(s => {
+                                const statKey = s.name;
+                                const baseVal = s.value;
+                                const currentEv = localBuild.evs[statKey] || 0;
+
+                                const otherEvSum = Object.keys(localBuild.evs)
+                                  .filter(k => k !== statKey)
+                                  .reduce((sum, k) => sum + (localBuild.evs[k] || 0), 0);
+
+                                const handleEvUpdate = (val) => {
+                                  let numericVal = parseInt(val) || 0;
+                                  numericVal = Math.max(0, Math.min(252, numericVal));
+                                  numericVal = Math.min(numericVal, 508 - otherEvSum);
+                                  
+                                  const updatedEvs = { ...localBuild.evs, [statKey]: numericVal };
+                                  setLocalBuild({ ...localBuild, evs: updatedEvs });
+                                };
+
+                                const calculatedValue = calculateLevel50Stat(statKey, baseVal, currentEv, localBuild.nature, activeEditBuild.pokemon.name);
+
+                                const nature = NATURES.find(n => n.name.toLowerCase() === localBuild.nature.toLowerCase());
+                                let natureImpactStyle = { color: 'var(--text-primary)' };
+                                let natureSymbol = '';
+                                if (nature && statKey !== 'hp') {
+                                  if (nature.increased === statKey) {
+                                    natureImpactStyle = { color: '#10b981', fontWeight: 800 };
+                                    natureSymbol = ' ▲';
+                                  } else if (nature.decreased === statKey) {
+                                    natureImpactStyle = { color: '#ef4444', fontWeight: 800 };
+                                    natureSymbol = ' ▼';
+                                  }
+                                }
+
+                                return (
+                                  <div key={statKey} className="ev-row-container">
+                                    <div className="ev-stat-label-row">
+                                      <span className="ev-stat-name">{STAT_DISPLAY_NAMES[statKey] || statKey}</span>
+                                      <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Base: {baseVal}</span>
+                                      <span style={natureImpactStyle} className="calculated-stat-value">
+                                        {calculatedValue}
+                                        {natureSymbol}
+                                      </span>
+                                    </div>
+                                    <div className="ev-control-group">
+                                      <input 
+                                        type="range"
+                                        min="0"
+                                        max="252"
+                                        step="4"
+                                        className="ev-slider"
+                                        value={currentEv}
+                                        onChange={(e) => handleEvUpdate(e.target.value)}
+                                      />
+                                      <input 
+                                        type="number"
+                                        min="0"
+                                        max="252"
+                                        step="4"
+                                        className="ev-numeric-input"
+                                        value={currentEv}
+                                        onChange={(e) => handleEvUpdate(e.target.value)}
+                                      />
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+
+                            {/* EV Summary Progress Box */}
+                            {(() => {
+                              const totalEvs = Object.values(localBuild.evs).reduce((a, b) => a + b, 0);
+                              const progressPct = (totalEvs / 508) * 100;
+                              return (
+                                <div className="ev-summary-box">
+                                  <div className="ev-summary-header">
+                                    <span>Total EVs Used</span>
+                                    <span style={{ color: totalEvs === 508 ? '#10b981' : 'var(--text-primary)', fontWeight: 800 }}>
+                                      {totalEvs} / 508
+                                    </span>
+                                  </div>
+                                  <div className="ev-summary-bar-bg">
+                                    <div 
+                                      className="ev-summary-bar-fill" 
+                                      style={{ 
+                                        width: `${progressPct}%`,
+                                        backgroundColor: totalEvs === 508 ? '#10b981' : 'rgba(var(--header-theme-rgb, 184, 35, 28), 1)'
+                                      }}
+                                    ></div>
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                          </div>
+
+                        </div>
+                      </div>
+
+                      {/* Footer buttons */}
+                      <div className="build-modal-footer">
+                        <button 
+                          className="build-btn build-btn-cancel" 
+                          onClick={() => setActiveEditBuild(null)}
+                        >
+                          Cancel
+                        </button>
+                        <button 
+                          className="build-btn build-btn-save"
+                          onClick={() => {
+                            const trainerId = trainer.id || trainer._id;
+                            const buildKey = `${activeEditBuild.teamIdx}_${activeEditBuild.slotIdx}`;
+                            const updatedBuilds = { ...builds, [buildKey]: localBuild };
+                            setBuilds(updatedBuilds);
+                            if (typeof window !== 'undefined' && trainerId) {
+                              localStorage.setItem(`trainer_builds_${trainerId}`, JSON.stringify(updatedBuilds));
+                            }
+                            setAiReport(null);
+                            setActiveEditBuild(null);
+                          }}
+                        >
+                          Save Build
+                        </button>
+                      </div>
+
                     </div>
                   </div>
                 )}
@@ -1050,7 +2844,7 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
                           {activeTeamSynergy.cons.length > 0 || activeTeamSynergy.warnings.length > 0 ? (
                             <ul>
                               {activeTeamSynergy.cons.map((c, i) => <li key={i}>{c}</li>)}
-                              {activeTeamSynergy.warnings.map((w, i) => <li key={i} style={{ color: '#be185d', fontWeight: 600 }}>{w}</li>)}
+                              {activeTeamSynergy.warnings.map((w, i) => <li key={i} style={{ color: '#be185d', fontWeight: 600 }}>{w.message}</li>)}
                             </ul>
                           ) : (
                             <p style={{ fontSize: '0.75rem', color: '#92400e' }}>No structural flaws detected in core types.</p>
@@ -1090,8 +2884,43 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
                                 recs.push(`Consider adding ${missing.join(' or ')} to activate the Dragon-Steel-Fairy core. This combination gives excellent mutual defensive coverage, with Steel resisting Fairy, Fairy beating Dragon, and Dragon providing raw offensive pressure.`);
                               }
                               
+                              const WEAKNESS_COUNTER_SUGGESTIONS = {
+                                fire: { resists: ['Water', 'Dragon', 'Fire', 'Rock'], counters: ['Water', 'Ground', 'Rock'] },
+                                water: { resists: ['Water', 'Grass', 'Dragon'], counters: ['Electric', 'Grass'] },
+                                grass: { resists: ['Fire', 'Grass', 'Poison', 'Flying', 'Dragon', 'Steel', 'Bug'], counters: ['Fire', 'Flying', 'Ice', 'Poison', 'Bug'] },
+                                electric: { resists: ['Electric', 'Grass', 'Dragon', 'Ground (Immune)'], counters: ['Ground'] },
+                                normal: { resists: ['Rock', 'Steel', 'Ghost (Immune)'], counters: ['Fighting'] },
+                                ice: { resists: ['Fire', 'Water', 'Ice', 'Steel'], counters: ['Fire', 'Fighting', 'Rock', 'Steel'] },
+                                fighting: { resists: ['Poison', 'Flying', 'Psychic', 'Bug', 'Fairy', 'Ghost (Immune)'], counters: ['Flying', 'Psychic', 'Fairy'] },
+                                poison: { resists: ['Poison', 'Ground', 'Rock', 'Ghost', 'Steel (Immune)'], counters: ['Ground', 'Psychic'] },
+                                ground: { resists: ['Grass', 'Bug', 'Flying (Immune)'], counters: ['Water', 'Grass', 'Ice'] },
+                                flying: { resists: ['Electric', 'Rock', 'Steel'], counters: ['Electric', 'Rock', 'Ice'] },
+                                psychic: { resists: ['Psychic', 'Steel', 'Dark (Immune)'], counters: ['Bug', 'Ghost', 'Dark'] },
+                                bug: { resists: ['Fire', 'Fighting', 'Poison', 'Flying', 'Ghost', 'Steel', 'Fairy'], counters: ['Fire', 'Flying', 'Rock'] },
+                                rock: { resists: ['Fighting', 'Ground', 'Steel'], counters: ['Water', 'Grass', 'Fighting', 'Ground', 'Steel'] },
+                                ghost: { resists: ['Dark', 'Normal (Immune)'], counters: ['Ghost', 'Dark'] },
+                                dragon: { resists: ['Steel', 'Fairy (Immune)'], counters: ['Ice', 'Dragon', 'Fairy'] },
+                                steel: { resists: ['Fire', 'Water', 'Electric', 'Steel'], counters: ['Fire', 'Fighting', 'Ground'] },
+                                fairy: { resists: ['Fire', 'Poison', 'Steel'], counters: ['Poison', 'Steel'] },
+                                dark: { resists: ['Fighting', 'Dark', 'Fairy'], counters: ['Fighting', 'Bug', 'Fairy'] }
+                              };
+
                               activeTeamSynergy.warnings.forEach(w => {
-                                recs.push(`Address shared weakness: ${w} — consider adding a team member that resists this type, or carry a coverage move to deter switch-ins.`);
+                                if (w.isQuad) {
+                                  const suggestions = WEAKNESS_COUNTER_SUGGESTIONS[w.type.toLowerCase()];
+                                  if (suggestions) {
+                                    recs.push(`Protect from double-weakness: Cover ${w.message.split('is double-weak')[0].replace('Extreme Weakness:', '').trim()}'s 4x weakness by switching in a ${suggestions.resists.join('/')} type, or knock out threat Pokémon with ${suggestions.counters.join('/')} moves.`);
+                                  } else {
+                                    recs.push(`Protect from double-weakness: Cover 4x weakness to ${w.type.toUpperCase()}.`);
+                                  }
+                                } else {
+                                  const suggestions = WEAKNESS_COUNTER_SUGGESTIONS[w.type.toLowerCase()];
+                                  if (suggestions) {
+                                    recs.push(`To counter your shared ${w.type.toUpperCase()} weakness (${w.count} members weak), consider adding a ${suggestions.resists.join('/')} Pokémon for switch-ins, or carry ${suggestions.counters.join('/')} coverage moves.`);
+                                  } else {
+                                    recs.push(`Address shared weakness to ${w.type.toUpperCase()} (consider adding resistances or immunities).`);
+                                  }
+                                }
                               });
                               
                               if (recs.length === 0) {
@@ -1469,7 +3298,7 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
                   </p>
                 </div>
                 <span style={{ fontSize: '0.8rem', color: 'var(--primary-color)', fontWeight: 700, background: 'var(--primary-light)', padding: '0.4rem 1rem', borderRadius: '20px' }}>
-                  <i className="fa-solid fa-database"></i> {ownedPokemonDetails.length} / 201
+                  <i className="fa-solid fa-database"></i> {ownedPokemonDetails.length} / {allPokemon.length}
                 </span>
               </div>
 
@@ -1912,12 +3741,7 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
               <i className="fa-solid fa-user-gear"></i> Trainer Profile Settings
             </h3>
 
-            {editSuccess && (
-              <div style={{ background: 'rgba(74, 222, 128, 0.1)', border: '1px solid rgba(74, 222, 128, 0.3)', color: '#4ade80', padding: '0.8rem', borderRadius: '10px', fontSize: '0.85rem', marginBottom: '1.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <i className="fa-solid fa-circle-check"></i>
-                <span>{editSuccess}</span>
-              </div>
-            )}
+
 
             {editError && (
               <div className="form-error" style={{ marginBottom: '1.2rem' }}>
@@ -2077,7 +3901,253 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
           </div>
         )}
 
+        {/* FRIENDS LIST & VIEW TEAM TAB */}
+        {activeTab === 'friends' && (
+          <div className="friends-section" style={{ background: '#ffffff', border: '1px solid var(--border-color)', borderRadius: '20px', padding: '2rem' }}>
+            {selectedFriend ? (
+              /* Selected Friend Team Details View */
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
+                  <button 
+                    onClick={() => setSelectedFriend(null)}
+                    style={{ background: 'none', border: 'none', color: 'var(--primary-color)', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.95rem' }}
+                  >
+                    <i className="fa-solid fa-arrow-left"></i> Back to Friends
+                  </button>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Friend's Tactical Squads</h3>
+                </div>
+
+                {/* Friend profile summary */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: '#f8fafc', padding: '1.2rem', borderRadius: '16px', marginBottom: '2rem' }}>
+                  <img src={selectedFriend.avatar} alt={selectedFriend.displayName} style={{ width: '60px', height: '60px', borderRadius: '50%', objectFit: 'cover', border: '3px solid #ffffff', boxShadow: '0 4px 10px rgba(0,0,0,0.05)' }} />
+                  <div>
+                    <h4 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>{selectedFriend.displayName}</h4>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                      Joined {selectedFriend.createdAt ? new Date(selectedFriend.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) : 'June 2026'} · {selectedFriend.ownedPokemon?.length || 0} Pokémon Owned
+                    </p>
+                  </div>
+                </div>
+
+                {/* Friend Teams Display */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+                  {[0, 1, 2].map(teamIdx => {
+                    const team = selectedFriend.teams?.[teamIdx] || [null, null, null, null, null, null];
+                    const activeTeamPokemon = team.map(id => allPokemon.find(p => p.id === id)).filter(Boolean);
+                    
+                    return (
+                      <div key={teamIdx} style={{ background: '#ffffff', border: '1px solid var(--border-color)', borderRadius: '16px', padding: '1.5rem', boxShadow: '0 4px 12px rgba(0,0,0,0.02)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
+                          <h4 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                            <i className="fa-solid fa-users" style={{ color: 'var(--primary-color)', marginRight: '0.5rem' }}></i> Tactical Team {teamIdx + 1}
+                          </h4>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 600, background: 'var(--primary-light)', color: 'var(--primary-color)', padding: '0.2rem 0.6rem', borderRadius: '20px' }}>
+                            {activeTeamPokemon.length} / 6 Active
+                          </span>
+                        </div>
+
+                        {/* Team Grid */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '1rem' }}>
+                          {team.map((pokeId, slotIdx) => {
+                            const poke = allPokemon.find(p => p.id === pokeId);
+                            if (poke) {
+                              const officialArtwork = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${poke.id}.png`;
+                              return (
+                                <div key={slotIdx} style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '0.8rem', textAlign: 'center', position: 'relative' }}>
+                                  <span style={{ position: 'absolute', top: '5px', left: '8px', fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-secondary)' }}>
+                                    #{poke.id}
+                                  </span>
+                                  <img 
+                                    src={officialArtwork} 
+                                    alt={poke.name} 
+                                    style={{ width: '60px', height: '60px', objectFit: 'contain', margin: '0.5rem auto 0.2rem' }} 
+                                  />
+                                  <h5 style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'capitalize', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {poke.name}
+                                  </h5>
+                                  <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'center', marginTop: '0.25rem' }}>
+                                    {poke.types.slice(0, 1).map(type => (
+                                      <span key={type} style={{ fontSize: '0.6rem', padding: '0.1rem 0.4rem', borderRadius: '4px', background: 'var(--border-color)', color: 'var(--text-secondary)', textTransform: 'capitalize' }}>
+                                        {type}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            } else {
+                              return (
+                                <div key={slotIdx} style={{ border: '2px dashed var(--border-color)', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '105px', background: 'rgba(248, 250, 252, 0.5)' }}>
+                                  <div style={{ width: '28px', height: '28px', borderRadius: '50%', border: '2px dashed var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>
+                                    <i className="fa-solid fa-plus" style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}></i>
+                                  </div>
+                                  <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginTop: '0.4rem' }}>Empty Slot</span>
+                                </div>
+                              );
+                            }
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              /* Friends List View */
+              <div>
+                <h3 className="profile-section-title" style={{ fontSize: '1.25rem', marginBottom: '1.5rem' }}>
+                  <i className="fa-solid fa-user-group"></i> Active Trainer Friends
+                </h3>
+
+                {loadingFriends ? (
+                  <div style={{ textAlign: 'center', padding: '3rem' }}>
+                    <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: '2rem', color: 'var(--primary-color)' }}></i>
+                    <p style={{ color: 'var(--text-secondary)', marginTop: '1rem', fontSize: '0.9rem' }}>Searching for other trainers...</p>
+                  </div>
+                ) : friends.length > 0 ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
+                    {friends.map(friend => (
+                      <div 
+                        key={friend._id} 
+                        className="friend-card"
+                        style={{
+                          background: '#ffffff',
+                          border: '1px solid var(--border-color)',
+                          borderRadius: '16px',
+                          padding: '1.2rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.02)',
+                          transition: 'transform 0.2s, box-shadow 0.2s',
+                          cursor: 'pointer'
+                        }}
+                        onClick={() => setSelectedFriend(friend)}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                          <img src={friend.avatar} alt={friend.displayName} style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover' }} />
+                          <div>
+                            <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>{friend.displayName}</h4>
+                            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>
+                              {friend.ownedPokemon?.length || 0} Pokémon Owned
+                            </p>
+                          </div>
+                        </div>
+                        <button 
+                          style={{
+                            background: 'var(--primary-light)',
+                            color: 'var(--primary-color)',
+                            border: 'none',
+                            borderRadius: '8px',
+                            padding: '0.5rem 0.8rem',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.3rem',
+                            transition: 'background-color 0.2s'
+                          }}
+                          onClick={(e) => { e.stopPropagation(); setSelectedFriend(friend); }}
+                        >
+                          <i className="fa-solid fa-users"></i> View Team
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '3rem', border: '1px dashed var(--border-color)', borderRadius: '16px' }}>
+                    <i className="fa-solid fa-users-slash" style={{ fontSize: '2.5rem', color: 'var(--text-secondary)', marginBottom: '1rem', opacity: 0.5 }}></i>
+                    <h4 style={{ fontSize: '1rem', fontWeight: 700 }}>No other trainers found</h4>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: '0.2rem' }}>You are currently the only active trainer on this network.</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
       </section>
+
+      {/* Mobile Floating Pokéball Menu Button */}
+      <button 
+        className={`mobile-pokeball-fab ${showMobileMenu ? 'open' : ''}`}
+        onClick={() => setShowMobileMenu(!showMobileMenu)}
+        aria-label="Toggle Navigation Menu"
+      >
+      </button>
+
+      {/* Mobile Floating Navigation Menu */}
+      {showMobileMenu && (
+        <div className="mobile-trainer-menu-overlay" onClick={() => setShowMobileMenu(false)}>
+          <div className="mobile-trainer-menu" onClick={(e) => e.stopPropagation()}>
+            <div className="mobile-menu-header">
+              <h3>Trainer Hub</h3>
+              <button className="mobile-menu-close" onClick={() => setShowMobileMenu(false)}>
+                <i className="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+            <div className="mobile-menu-items">
+              <button 
+                className={`trainer-nav-item ${activeTab === 'profile' ? 'active' : ''}`}
+                onClick={() => { setActiveTab('profile'); setShowMobileMenu(false); }}
+              >
+                <i className="fa-solid fa-id-card"></i> Trainer Profile
+              </button>
+              
+              {!isAdmin && (
+                <button 
+                  className={`trainer-nav-item ${activeTab === 'collection' ? 'active' : ''}`}
+                  onClick={() => { setActiveTab('collection'); setShowMobileMenu(false); }}
+                >
+                  <i className="fa-solid fa-layer-group"></i> My Pokemon
+                </button>
+              )}
+
+              {!isAdmin && (
+                <button 
+                  className={`trainer-nav-item ${activeTab === 'matchups' ? 'active' : ''}`}
+                  onClick={() => { setActiveTab('matchups'); setShowMobileMenu(false); }}
+                >
+                  <i className="fa-solid fa-diagram-project"></i> Type Matchups
+                </button>
+              )}
+              
+              {!isAdmin && (
+                <button 
+                  className={`trainer-nav-item ${activeTab === 'settings' ? 'active' : ''}`}
+                  onClick={() => { setActiveTab('settings'); setShowMobileMenu(false); }}
+                >
+                  <i className="fa-solid fa-sliders"></i> Account Settings
+                </button>
+              )}
+
+              {!isAdmin && (
+                <button 
+                  className={`trainer-nav-item ${activeTab === 'friends' ? 'active' : ''}`}
+                  onClick={() => { setActiveTab('friends'); setShowMobileMenu(false); }}
+                >
+                  <i className="fa-solid fa-user-group"></i> Friends
+                </button>
+              )}
+
+              {isAdmin && (
+                <button 
+                  className={`trainer-nav-item ${activeTab === 'admin' ? 'active' : ''}`}
+                  onClick={() => { setActiveTab('admin'); setShowMobileMenu(false); }}
+                >
+                  <i className="fa-solid fa-users-gear"></i> Manage Accounts
+                </button>
+              )}
+              
+              <button 
+                className="trainer-nav-item trainer-nav-item--logout"
+                onClick={() => { handleLogout(); setShowMobileMenu(false); }}
+              >
+                <i className="fa-solid fa-right-from-bracket"></i> Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
     </div>
   );
