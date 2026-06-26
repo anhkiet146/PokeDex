@@ -117,7 +117,11 @@ export function groupPokemonWithMegaVariants(pokemonList) {
 }
 
 export function getMegaHeldItem(name) {
-  return MEGA_STONES[name] || null;
+  const stone = MEGA_STONES[name];
+  if (stone === 'No Mega Stone - requires Dragon Ascent') {
+    return null;
+  }
+  return stone || null;
 }
 
 export function normalizeAbilities(abilities = []) {

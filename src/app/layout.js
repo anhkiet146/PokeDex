@@ -1,13 +1,13 @@
-import { Outfit } from 'next/font/google';
+import { Be_Vietnam_Pro } from 'next/font/google';
 import './globals.css';
 import Link from 'next/link';
 import { getSession } from '@/lib/auth';
 
-const outfit = Outfit({
-  subsets: ['latin'],
-  weight: ['300', '400', '500', '600', '700', '800'],
+const beVietnamPro = Be_Vietnam_Pro({
+  subsets: ['latin', 'vietnamese'],
+  weight: ['300', '400', '500', '600', '700', '800', '900'],
   display: 'swap',
-  variable: '--font-outfit',
+  variable: '--font-be-vietnam-pro',
 });
 
 export const metadata = {
@@ -25,12 +25,12 @@ export default async function RootLayout({ children }) {
   const trainer = await getSession();
 
   return (
-    <html lang="en" className={`${outfit.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${beVietnamPro.variable}`} suppressHydrationWarning>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
       </head>
-      <body suppressHydrationWarning>
+      <body className={beVietnamPro.className} suppressHydrationWarning>
         <nav className="navbar">
           <div className="nav-container">
             <Link href="/" className="nav-logo">

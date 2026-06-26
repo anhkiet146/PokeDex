@@ -198,6 +198,48 @@ function buildEvolutionChainWithMega(evoChain, pokemonList) {
   return expanded;
 }
 
+function getItemImageUrl(itemName) {
+  if (!itemName || itemName.toLowerCase() === 'none') return null;
+  const normalized = itemName
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/[^\w-]/g, '');
+  return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${normalized}.png`;
+}
+
+async function getAbilityDetails(abilities) {
+  return Promise.all(
+    abilities.map(async (ability) => {
+      try {
+        const res = await fetch(`https://pokeapi.co/api/v2/ability/${ability.name}`, {
+          next: { revalidate: 60 * 60 * 24 * 7 }
+        });
+        if (!res.ok) {
+          return { ...ability, description: 'No description available.' };
+        }
+        const data = await res.json();
+        
+        // Find English effect entry
+        const effectEntry = data.effect_entries.find(entry => entry.language.name === 'en')
+          || data.flavor_text_entries.find(entry => entry.language.name === 'en');
+          
+        const description = effectEntry
+          ? (effectEntry.short_effect || effectEntry.flavor_text || effectEntry.effect || '')
+          : 'No description available.';
+          
+        return {
+          ...ability,
+          description: description.replace(/\f/g, ' ').replace(/\n/g, ' ')
+        };
+      } catch (error) {
+        console.error(`Error fetching ability details for ${ability.name}:`, error);
+        return { ...ability, description: 'No description available.' };
+      }
+    })
+  );
+}
+
 export default async function PokemonDetailPage({ params }) {
   const { id } = await params;
   const pokemonId = Number(id);
@@ -247,6 +289,7 @@ export default async function PokemonDetailPage({ params }) {
     };
 
     const abilities = normalizeAbilities(pokemon.abilities);
+    const abilitiesWithDetails = await getAbilityDetails(abilities);
     const primaryAbility = abilities[0]?.name || 'unknown';
     const battleRole = getBattleRole(pokemon);
     const heldItem = getSuggestedItem(pokemon);
@@ -340,17 +383,55 @@ export default async function PokemonDetailPage({ params }) {
                 Battle Data
               </h3>
               <div className="standard-build-grid">
-                <div className="build-feature-card">
+                <div className="build-feature-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 0 }}>
                   <i className="fa-solid fa-bolt build-feature-icon"></i>
-                  <span className="build-feature-label">Ability</span>
-                  <span className="build-feature-value" style={{ textTransform: 'capitalize' }}>
-                    {formatPokemonName(primaryAbility)}
-                  </span>
+                  <span className="build-feature-label">Abilities</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', width: '100%', textAlign: 'left', marginTop: '0.5rem' }}>
+                    {abilitiesWithDetails.map((ability, idx) => (
+                      <div 
+                        key={ability.name} 
+                        style={{ 
+                          borderTop: idx > 0 ? '1px solid var(--border-color)' : 'none', 
+                          paddingTop: idx > 0 ? '0.5rem' : '0' 
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+                          <strong style={{ textTransform: 'capitalize', fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: 800 }}>
+                            {formatPokemonName(ability.name)}
+                          </strong>
+                          {ability.isHidden && (
+                            <span style={{ fontSize: '0.6rem', backgroundColor: '#fee2e2', color: '#991b1b', padding: '0.05rem 0.25rem', borderRadius: '4px', fontWeight: 700, textTransform: 'uppercase' }}>
+                              Hidden
+                            </span>
+                          )}
+                        </div>
+                        <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.15rem', lineHeight: '1.3' }}>
+                          {ability.description}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="build-feature-card">
+                <div className="build-feature-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: 0 }}>
                   <i className="fa-solid fa-bag-shopping build-feature-icon" style={{ color: '#ec4899' }}></i>
                   <span className="build-feature-label">Suggested Held Item</span>
-                  <span className="build-feature-value">{heldItem}</span>
+                  <span className="build-feature-value" style={{ marginBottom: '0.4rem' }}>{heldItem}</span>
+                  <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
+                    {heldItem.split('/').map(item => {
+                      const trimmed = item.trim();
+                      const imgUrl = getItemImageUrl(trimmed);
+                      if (!imgUrl) return null;
+                      return (
+                        <img 
+                          key={trimmed}
+                          src={imgUrl} 
+                          alt={trimmed} 
+                          title={trimmed}
+                          style={{ width: '24px', height: '24px', objectFit: 'contain' }}
+                        />
+                      );
+                    })}
+                  </div>
                 </div>
                 <div className="build-feature-card">
                   <i className="fa-solid fa-compass build-feature-icon" style={{ color: '#06b6d4' }}></i>
@@ -384,7 +465,25 @@ export default async function PokemonDetailPage({ params }) {
                       </div>
                       <div>
                         <span>Item</span>
-                        <strong>{build.item}</strong>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexWrap: 'wrap' }}>
+                          <strong style={{ fontSize: '0.85rem' }}>{build.item}</strong>
+                          <div style={{ display: 'flex', gap: '0.2rem' }}>
+                            {build.item.split('/').map(item => {
+                              const trimmed = item.trim();
+                              const imgUrl = getItemImageUrl(trimmed);
+                              if (!imgUrl) return null;
+                              return (
+                                <img
+                                  key={trimmed}
+                                  src={imgUrl}
+                                  alt={trimmed}
+                                  title={trimmed}
+                                  style={{ width: '20px', height: '20px', objectFit: 'contain' }}
+                                />
+                              );
+                            })}
+                          </div>
+                        </div>
                       </div>
                       <div>
                         <span>EVs</span>

@@ -12,19 +12,29 @@ export async function POST(request) {
 
     await dbConnect();
     const { pokemonId, action } = await request.json(); // action: 'add' | 'remove'
-    const idNum = Number(pokemonId);
-
-    if (!idNum) {
-      return NextResponse.json({ error: 'Invalid Pokémon ID' }, { status: 400 });
-    }
 
     let update = {};
-    if (action === 'add') {
-      update = { $addToSet: { ownedPokemon: idNum } };
-    } else if (action === 'remove') {
-      update = { $pull: { ownedPokemon: idNum } };
+    if (Array.isArray(pokemonId)) {
+      const ids = pokemonId.map(Number).filter(id => !isNaN(id) && id > 0);
+      if (action === 'add') {
+        update = { $addToSet: { ownedPokemon: { $each: ids } } };
+      } else if (action === 'remove') {
+        update = { $pull: { ownedPokemon: { $in: ids } } };
+      } else {
+        return NextResponse.json({ error: 'Invalid collection action' }, { status: 400 });
+      }
     } else {
-      return NextResponse.json({ error: 'Invalid collection action' }, { status: 400 });
+      const idNum = Number(pokemonId);
+      if (!idNum) {
+        return NextResponse.json({ error: 'Invalid Pokémon ID' }, { status: 400 });
+      }
+      if (action === 'add') {
+        update = { $addToSet: { ownedPokemon: idNum } };
+      } else if (action === 'remove') {
+        update = { $pull: { ownedPokemon: idNum } };
+      } else {
+        return NextResponse.json({ error: 'Invalid collection action' }, { status: 400 });
+      }
     }
 
     const trainer = await Trainer.findByIdAndUpdate(

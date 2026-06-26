@@ -37,7 +37,7 @@
 }
 
 body {
-    font-family: 'Outfit', sans-serif;
+    font-family: var(--font-be-vietnam-pro), 'Be Vietnam Pro', sans-serif;
     background-color: var(--bg-light);
     color: var(--text-primary);
     min-height: 100vh;
@@ -3657,6 +3657,350 @@ body {
     color: #ffffff !important;
     background: var(--type-color) !important;
     opacity: 0.9;
+}
+
+/* AI Team Strategy Coach Upgrades */
+.coach-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.coach-metric-card {
+    background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(248,250,252,0.9));
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.01), 0 2px 4px -1px rgba(0,0,0,0.01);
+}
+
+.coach-metric-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.coach-metric-icon--synergy {
+    background: rgba(99, 144, 240, 0.1);
+    color: #6390f0;
+}
+
+.coach-metric-icon--speed {
+    background: rgba(245, 158, 11, 0.1);
+    color: #f59e0b;
+}
+
+.coach-metric-icon--bulk {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+}
+
+/* Defensive Synergy Matrix */
+.matrix-container {
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 1.2rem;
+    margin-bottom: 1.5rem;
+}
+
+.matrix-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 0.6rem;
+    margin-top: 1rem;
+}
+
+.matrix-cell {
+    background: #f8fafc;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+    transition: all 0.2s ease;
+}
+
+.matrix-cell:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.04);
+}
+
+.matrix-cell--hazard {
+    background: rgba(239, 68, 68, 0.03);
+    border-color: rgba(239, 68, 68, 0.25);
+}
+
+.matrix-type-badge {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #fff;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    width: 100%;
+    text-align: center;
+}
+
+.matrix-score-row {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    display: flex;
+    gap: 0.2rem;
+    align-items: center;
+}
+
+.matrix-score-badge {
+    padding: 0.05rem 0.3rem;
+    border-radius: 4px;
+    font-weight: 800;
+    font-size: 0.65rem;
+}
+
+.matrix-score-badge--weak {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+.matrix-score-badge--doubleweak {
+    background: #ef4444;
+    color: #ffffff;
+}
+
+.matrix-score-badge--resist {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+}
+
+.matrix-score-badge--doubleresist {
+    background: #10b981;
+    color: #ffffff;
+}
+
+.matrix-score-badge--immune {
+    background: #64748b;
+    color: #ffffff;
+}
+
+.matrix-score-badge--neutral {
+    background: rgba(148, 163, 184, 0.1);
+    color: #64748b;
+}
+
+/* Double Ace/Carry Spotlight */
+.ace-spotlight-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.ace-card {
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 1.2rem;
+    display: flex;
+    gap: 1rem;
+    position: relative;
+    overflow: hidden;
+    background: #ffffff;
+}
+
+.ace-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+}
+
+.ace-card--physical {
+    box-shadow: 0 4px 15px rgba(245, 158, 11, 0.03);
+}
+.ace-card--physical::before {
+    background: linear-gradient(to right, #f59e0b, #ef4444);
+}
+
+.ace-card--special {
+    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.03);
+}
+.ace-card--special::before {
+    background: linear-gradient(to right, #8b5cf6, #ec4899);
+}
+
+.ace-img-wrapper {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border: 1.5px solid var(--border-color);
+    background: #f8fafc;
+}
+
+.ace-card--physical .ace-img-wrapper {
+    border-color: #f59e0b;
+}
+.ace-card--special .ace-img-wrapper {
+    border-color: #8b5cf6;
+}
+
+.ace-tag {
+    font-size: 0.6rem;
+    font-weight: 800;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: inline-block;
+    margin-bottom: 0.4rem;
+}
+
+.ace-tag--physical {
+    background: rgba(245, 158, 11, 0.1);
+    color: #d97706;
+}
+
+.ace-tag--special {
+    background: rgba(139, 92, 246, 0.1);
+    color: #7c3aed;
+}
+
+/* Strategic VGC Playbook */
+.playbook-card {
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 1.2rem;
+    margin-bottom: 1.5rem;
+}
+
+.playbook-leads-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.playbook-lead-item {
+    background: #f8fafc;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 0.8rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.playbook-pokemon-mini {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: #ffffff;
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: capitalize;
+}
+
+.playbook-pivot-flow {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    background: rgba(99, 144, 240, 0.02);
+    border: 1px solid rgba(99, 144, 240, 0.08);
+    border-radius: 10px;
+    padding: 0.8rem;
+    margin-top: 0.8rem;
+}
+
+.playbook-pivot-step {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--text-primary);
+}
+
+.playbook-pivot-arrow {
+    color: #6390f0;
+    font-size: 0.85rem;
+}
+
+/* Coach's Optimization Box */
+.coach-opt-box {
+    background: #fffdf5;
+    border: 1px solid #fef08a;
+    border-radius: 10px;
+    padding: 0.8rem;
+    margin-top: 0.6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.coach-opt-title {
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: #854d0e;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.coach-opt-item {
+    font-size: 0.72rem;
+    color: #713f12;
+    line-height: 1.35;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.35rem;
+}
+
+.coach-opt-item::before {
+    content: '⚡';
+    flex-shrink: 0;
+}
+
+.member-card-wrapper {
+    position: relative;
+    overflow: hidden;
+    transition: all 0.25s ease;
+}
+
+.member-card-wrapper:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.03);
+}
+
+/* Live EV Display Badge */
+.member-ev-badge {
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 0.1rem 0.3rem;
+    border-radius: 4px;
+    border: 1px solid #e2e8f0;
+    text-transform: uppercase;
 }
 
 

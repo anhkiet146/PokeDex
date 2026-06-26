@@ -1236,6 +1236,16 @@ const parseEvSpreadString = (spreadStr) => {
   return evs;
 };
 
+const getItemImageUrl = (itemName) => {
+  if (!itemName || itemName.toLowerCase() === 'none') return null;
+  const normalized = itemName
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/[^\w-]/g, '');
+  return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${normalized}.png`;
+};
+
 const getTop4Moves = (movesList) => {
   if (!movesList || movesList.length === 0) return ['', '', '', ''];
   const PRIORITY = [
@@ -1330,8 +1340,8 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
   const [collectionSearch, setCollectionSearch] = useState('');
 
   // Team suggester states
-  const [suggestScope, setSuggestScope] = useState('owned'); // owned | all
-  const [suggestFormat, setSuggestFormat] = useState('single'); // single | double
+  const [suggestScope, setSuggestScope] = useState('all'); // owned | all
+  const [suggestFormat, setSuggestFormat] = useState('double'); // single | double
   const [suggestArchetype, setSuggestArchetype] = useState('balanced'); // balanced | offense | defense
 
   // Custom team builder states
@@ -1595,9 +1605,88 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
     }
   };
 
+  const handleDeploySuggestedTeam = async () => {
+    if (!suggestionResult) return;
+    const suggestedIds = suggestedTeam.map(p => p.id);
+    const unownedIds = suggestedIds.filter(id => !trainer.ownedPokemon.includes(id));
+    
+    if (!window.confirm(`Do you want to deploy the entire "${suggestionResult.teamName}" to your active slot? (Missing Pokémon will be automatically added to your collection)`)) {
+      return;
+    }
+    
+    let currentTrainer = trainer;
+    if (unownedIds.length > 0) {
+      try {
+        const res = await fetch('/api/trainer/pokemon', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pokemonId: unownedIds, action: 'add' }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to update collection');
+        }
+        setTrainer(data.trainer);
+        currentTrainer = data.trainer;
+      } catch (err) {
+        alert("Failed to auto-add Pokémon to your collection: " + err.message);
+        return;
+      }
+    }
+
+    const newTeams = [...teams];
+    newTeams[activeTeamIdx] = [null, null, null, null, null, null];
+    suggestedIds.forEach((id, idx) => {
+      if (idx < 6) {
+        newTeams[activeTeamIdx][idx] = id;
+      }
+    });
+
+    await handleSaveTeams(newTeams);
+
+    // Initialize default builds for these slots
+    const trainerId = currentTrainer.id || currentTrainer._id;
+    const updatedBuilds = { ...builds };
+    suggestedIds.forEach((id, idx) => {
+      if (idx >= 6) return;
+      const key = `${activeTeamIdx}_${idx}`;
+      if (!updatedBuilds[key]) {
+        const p = allPokemon.find(item => item.id === id);
+        if (p) {
+          updatedBuilds[key] = {
+            ability: p.abilities?.[0] || '',
+            heldItem: getSuggestedItem ? getSuggestedItem(p) : '',
+            nature: getSuggestedNature ? getSuggestedNature(p) : 'Serious',
+            evs: getSuggestedEvSpread && parseEvSpreadString ? parseEvSpreadString(getSuggestedEvSpread(p)) : { hp: 0, attack: 0, defense: 0, 'special-attack': 0, 'special-defense': 0, speed: 0 },
+            moves: ['', '', '', '']
+          };
+        }
+      }
+    });
+
+    setBuilds(updatedBuilds);
+    if (typeof window !== 'undefined' && trainerId) {
+      localStorage.setItem(`trainer_builds_${trainerId}`, JSON.stringify(updatedBuilds));
+    }
+
+    alert(`Successfully deployed "${suggestionResult.teamName}" to Team Slot ${activeTeamIdx + 1}!`);
+  };
+
   const handleRunAiAnalysis = () => {
     const activeTeam = teams[activeTeamIdx];
-    const activeTeamPokemon = activeTeam.map(id => allPokemon.find(p => p.id === id)).filter(Boolean);
+    const activeTeamPokemon = [];
+    activeTeam.forEach((id, slotIdx) => {
+      if (id) {
+        const found = allPokemon.find(p => p.id === id);
+        if (found) {
+          activeTeamPokemon.push({
+            pokemon: found,
+            slotIdx: slotIdx
+          });
+        }
+      }
+    });
+
     if (activeTeamPokemon.length < 3) {
       alert("Add at least 3 Pokémon to your team before requesting AI analysis.");
       return;
@@ -1624,86 +1713,324 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
       } else {
         clearInterval(interval);
         
-        const primaryTypes = activeTeamPokemon.flatMap(p => p.types);
+        // Generate detailed stats & custom build analyses for each team member
+        const memberAnalyses = activeTeamPokemon.map(({ pokemon: p, slotIdx }) => {
+          const buildKey = `${activeTeamIdx}_${slotIdx}`;
+          const customBuild = builds[buildKey] || {
+            ability: p.abilities?.[0] || 'Unknown',
+            heldItem: 'None',
+            nature: 'Serious',
+            evs: { hp: 0, attack: 0, defense: 0, 'special-attack': 0, 'special-defense': 0, speed: 0 },
+            moves: ['', '', '', '']
+          };
+
+          const evs = customBuild.evs || { hp: 0, attack: 0, defense: 0, 'special-attack': 0, 'special-defense': 0, speed: 0 };
+          const hpBase = p.stats?.find(s => s.name === 'hp')?.value || 60;
+          const atkBase = p.stats?.find(s => s.name === 'attack')?.value || 60;
+          const defBase = p.stats?.find(s => s.name === 'defense')?.value || 60;
+          const spaBase = p.stats?.find(s => s.name === 'special-attack')?.value || 60;
+          const spdBase = p.stats?.find(s => s.name === 'special-defense')?.value || 60;
+          const speBase = p.stats?.find(s => s.name === 'speed')?.value || 60;
+
+          const hpLv50 = calculateLevel50Stat('hp', hpBase, evs.hp, customBuild.nature, p.name);
+          const atkLv50 = calculateLevel50Stat('attack', atkBase, evs.attack, customBuild.nature, p.name);
+          const defLv50 = calculateLevel50Stat('defense', defBase, evs.defense, customBuild.nature, p.name);
+          const spaLv50 = calculateLevel50Stat('special-attack', spaBase, evs['special-attack'], customBuild.nature, p.name);
+          const spdLv50 = calculateLevel50Stat('special-defense', spdBase, evs['special-defense'], customBuild.nature, p.name);
+          const speLv50 = calculateLevel50Stat('speed', speBase, evs.speed, customBuild.nature, p.name);
+
+          const ability = customBuild.ability || p.abilities?.[0] || 'Unknown';
+          const heldItem = customBuild.heldItem || 'None';
+          const nature = customBuild.nature || 'Serious';
+          const selectedMoves = customBuild.moves?.filter(Boolean) || [];
+
+          // Determine role desc
+          let roleDesc = "";
+          if (speLv50 > 130 && Math.max(atkLv50, spaLv50) > 130) {
+            roleDesc = "Fast Sweeper. High Speed and offensive power. Focus on securing early-game KOs.";
+          } else if (hpLv50 + defLv50 + spdLv50 > 420) {
+            roleDesc = "Bulky Pivot/Tank. Exceptional natural defenses. Great for safe switch-in cycles.";
+          } else if (speLv50 > 120) {
+            roleDesc = "Fast Disrupter/Support. Speed control and utility. Pivot using status moves.";
+          } else if (Math.max(atkLv50, spaLv50) > 140) {
+            roleDesc = "Bulky Attacker/Wallbreaker. Heavy hits with moderate bulk. Setup Trick Room to shine.";
+          } else {
+            roleDesc = "Balanced Combatant. Decent stats all-around. Adaptable to multiple strategies.";
+          }
+
+          // Coach Tips
+          const coachTips = [];
+          if (heldItem === 'None' || heldItem.toLowerCase() === 'none') {
+            let suggested = "Leftovers";
+            if (speLv50 > 120 && Math.max(atkLv50, spaLv50) > 120) suggested = "Focus Sash / Life Orb";
+            else if (hpLv50 + defLv50 + spdLv50 > 400) suggested = "Assault Vest / Rocky Helmet";
+            coachTips.push(`Held Item is missing. We suggest running ${suggested} to optimize utility.`);
+          }
+          const isNeutralNature = ['serious', 'docile', 'hardy', 'bashful', 'quirky'].includes(nature.toLowerCase());
+          if (isNeutralNature) {
+            let suggested = "Jolly / Timid";
+            if (atkLv50 > spaLv50) suggested = "Jolly (+Speed, -SpA) or Adamant (+Atk, -SpA)";
+            else if (spaLv50 > atkLv50) suggested = "Timid (+Speed, -Atk) or Modest (+SpA, -Atk)";
+            coachTips.push(`Neutral nature (${nature}) detected. We suggest changing to ${suggested} for competitive benefit.`);
+          }
+          if (selectedMoves.length < 4) {
+            coachTips.push(`Only ${selectedMoves.length}/4 moves set. Consider adding utility like 'Protect' or speed control.`);
+          }
+          const totalEvs = Object.values(evs).reduce((a, b) => a + b, 0);
+          if (totalEvs === 0) {
+            coachTips.push("EV spread is unallocated (0 EVs). Please allocate EVs in the custom build modal to boost performance.");
+          }
+
+          return {
+            id: p.id,
+            name: p.name,
+            image: p.image,
+            types: p.types,
+            ability,
+            heldItem,
+            nature,
+            roleDesc,
+            selectedMoves,
+            evs,
+            coachTips,
+            stats: { hp: hpLv50, attack: atkLv50, defense: defLv50, 'special-attack': spaLv50, 'special-defense': spdLv50, speed: speLv50 },
+            baseStats: { hp: hpBase, attack: atkBase, defense: defBase, 'special-attack': spaBase, 'special-defense': spdBase, speed: speBase }
+          };
+        });
+
+        const avgSpeed = Math.round(memberAnalyses.reduce((acc, m) => acc + m.stats.speed, 0) / memberAnalyses.length);
+        const avgHp = Math.round(memberAnalyses.reduce((acc, m) => acc + m.stats.hp, 0) / memberAnalyses.length);
+        const avgDef = Math.round(memberAnalyses.reduce((acc, m) => acc + m.stats.defense, 0) / memberAnalyses.length);
+        const avgSpd = Math.round(memberAnalyses.reduce((acc, m) => acc + m.stats['special-defense'], 0) / memberAnalyses.length);
+        const avgHpDef = Math.round(memberAnalyses.reduce((acc, m) => acc + m.baseStats.hp + m.baseStats.defense, 0) / memberAnalyses.length); // back-compat
+        const avgPhysicalBulk = avgHp + avgDef;
+        const avgSpecialBulk = avgHp + avgSpd;
+
+        // Check Synergies
+        const abilities = memberAnalyses.map(m => m.ability.toLowerCase());
+        const moves = memberAnalyses.flatMap(m => m.selectedMoves.map(mv => mv.toLowerCase()));
         
-        let ace = activeTeamPokemon[0];
-        let maxOffVal = 0;
-        activeTeamPokemon.forEach(p => {
-          const atk = p.stats.find(s => s.name === 'attack')?.value || 60;
-          const spatk = p.stats.find(s => s.name === 'special-attack')?.value || 60;
-          const offVal = Math.max(atk, spatk);
-          if (offVal > maxOffVal) {
-            maxOffVal = offVal;
-            ace = p;
+        const hasSunSetter = abilities.some(a => ['drought', 'desolate-land'].includes(a));
+        const hasRainSetter = abilities.some(a => ['drizzle', 'primordial-sea'].includes(a));
+        const hasSandSetter = abilities.some(a => ['sand-stream'].includes(a));
+        const hasSnowSetter = abilities.some(a => ['snow-warning'].includes(a));
+
+        const hasTrickRoom = moves.includes('trick room');
+        const hasTailwind = moves.includes('tailwind');
+        const hasRedirection = moves.some(m => ['follow me', 'rage powder'].includes(m));
+        const hasIntimidate = abilities.includes('intimidate');
+        const hasProtect = moves.filter(m => m === 'protect').length;
+
+        // Determine Archetype
+        let archetype = "Standard Balanced Offense";
+        if (hasTrickRoom && avgSpeed < 80) archetype = "Trick Room Bulky Offense";
+        else if (hasTailwind) archetype = "Tailwind Speed Control";
+        else if (hasSunSetter) archetype = "Sun Weather Offense";
+        else if (hasRainSetter) archetype = "Rain Weather Offense";
+        else if (hasSandSetter) archetype = "Sand Bulky Offense";
+        else if (avgSpeed > 115) archetype = "Fast Hyper Offense";
+        else if (avgPhysicalBulk + avgSpecialBulk > 520) archetype = "Bulky Balance / Defensive Pivot";
+
+        // Synergy Score Calculation
+        let synergyScore = 50;
+        if (hasTrickRoom || hasTailwind) synergyScore += 15;
+        if (hasRedirection || hasIntimidate) synergyScore += 15;
+        if (hasProtect >= 2) synergyScore += 10;
+        else if (hasProtect === 1) synergyScore += 5;
+        
+        const types = memberAnalyses.flatMap(m => m.types);
+        const hasFWG = types.includes('fire') && types.includes('water') && types.includes('grass');
+        const hasFantasy = types.includes('dragon') && types.includes('steel') && types.includes('fairy');
+        if (hasFWG) synergyScore += 10;
+        if (hasFantasy) synergyScore += 10;
+        synergyScore = Math.min(100, Math.max(25, synergyScore));
+
+        // Speed distribution tier tag
+        let speedTier = "Medium Paced";
+        if (avgSpeed > 115) speedTier = "Very Fast (Sweeper Heavy)";
+        else if (avgSpeed > 90) speedTier = "Moderately Fast";
+        else if (avgSpeed < 65) speedTier = "Very Slow (TR Optimized)";
+
+        // Type Weakness Audit
+        const getDamageMultiplier = (pkTypes, attackType) => {
+          let mult = 1.0;
+          pkTypes.forEach(pt => {
+            const row = TYPE_CHART[attackType];
+            if (row && row[pt] !== undefined) {
+              mult *= row[pt];
+            }
+          });
+          return mult;
+        };
+
+        const matrix = POKEMON_TYPES.map(t => {
+          let weakCount = 0;
+          let resistCount = 0;
+          let immuneCount = 0;
+          let neutralCount = 0;
+          
+          const mults = memberAnalyses.map(m => {
+            const mult = getDamageMultiplier(m.types, t);
+            if (mult > 1) weakCount++;
+            else if (mult === 0) immuneCount++;
+            else if (mult < 1) resistCount++;
+            else neutralCount++;
+            return { memberId: m.id, name: m.name, mult };
+          });
+
+          const isHazard = (weakCount >= 3) && (resistCount + immuneCount < 2);
+
+          return {
+            type: t,
+            weakCount,
+            resistCount,
+            immuneCount,
+            neutralCount,
+            isHazard,
+            mults
+          };
+        });
+
+        const hazards = matrix.filter(m => m.isHazard).map(m => m.type);
+
+        // Select physical & special carry
+        const sortedByAtk = [...memberAnalyses].sort((a, b) => b.stats.attack - a.stats.attack);
+        const physicalAce = sortedByAtk[0];
+
+        const sortedBySpa = [...memberAnalyses].sort((a, b) => b.stats['special-attack'] - a.stats['special-attack']);
+        const specialAce = sortedBySpa[0];
+
+        const getAceAdvice = (ace, isSpecial) => {
+          const typeList = ace.types.join(' & ');
+          let advice = `Pair ${formatPokemonName(ace.name)} with redirection (Follow Me / Rage Powder) to allow safe setup turns. `;
+          
+          if (ace.heldItem.includes('Choice')) {
+            advice += `Since they are holding a Choice item (${ace.heldItem}), use pivots (U-turn / Volt Switch) to reset locked moves. `;
+          } else if (ace.heldItem.includes('Life Orb')) {
+            advice += `Life Orb boosts offensive output but drains HP; support them with screens (Reflect/Light Screen) or healing to extend longevity. `;
+          }
+
+          if (isSpecial) {
+            advice += `As a Special Attacker, watch out for opposing Snarl or Assault Vest pivots. Target physical defense cores instead.`;
+          } else {
+            advice += `As a Physical Attacker, watch out for Intimidate recycling. Pair with Defiant/Competitive teammates, or clear hazards to secure KOs.`;
+          }
+          return advice;
+        };
+
+        const physicalAceAdvice = getAceAdvice(physicalAce, false);
+        const specialAceAdvice = getAceAdvice(specialAce, true);
+
+        // Optimal Leads
+        const sortedBySpeed = [...memberAnalyses].sort((a, b) => b.stats.speed - a.stats.speed);
+        
+        let lead1 = [sortedBySpeed[0], sortedBySpeed[1] || sortedBySpeed[0]];
+        const tailwindUser = memberAnalyses.find(m => m.selectedMoves.map(mv => mv.toLowerCase()).includes('tailwind'));
+        if (tailwindUser) {
+          const bestAttacker = memberAnalyses.find(m => m.id !== tailwindUser.id && (m.stats.attack > 120 || m.stats['special-attack'] > 120)) || sortedBySpeed[0];
+          lead1 = [tailwindUser, bestAttacker];
+        }
+
+        let lead2 = [memberAnalyses.find(m => m.ability.toLowerCase() === 'intimidate') || sortedBySpeed[sortedBySpeed.length - 1], sortedBySpeed[Math.floor(sortedBySpeed.length / 2)]];
+        if (lead2[0].id === lead2[1].id && memberAnalyses.length > 2) {
+          lead2[1] = memberAnalyses.find(m => m.id !== lead2[0].id) || lead2[1];
+        }
+
+        let lead3 = [sortedBySpeed[sortedBySpeed.length - 1], sortedBySpeed[sortedBySpeed.length - 2] || sortedBySpeed[sortedBySpeed.length - 1]];
+        const trickRoomUser = memberAnalyses.find(m => m.selectedMoves.map(mv => mv.toLowerCase()).includes('trick room'));
+        if (trickRoomUser) {
+          const slowAttacker = memberAnalyses.find(m => m.id !== trickRoomUser.id && m.stats.speed < 80) || sortedBySpeed[sortedBySpeed.length - 1];
+          lead3 = [trickRoomUser, slowAttacker];
+        }
+
+        const leads = [
+          {
+            title: tailwindUser ? "Tailwind Speed Setup" : "Fast Offensive Lead",
+            p1: lead1[0],
+            p2: lead1[1],
+            desc: tailwindUser 
+              ? `Lead with ${formatPokemonName(lead1[0].name)} to set up Tailwind on Turn 1, enabling ${formatPokemonName(lead1[1].name)} to outspeed and apply massive immediate pressure.`
+              : `Lead with ${formatPokemonName(lead1[0].name)} and ${formatPokemonName(lead1[1].name)} to secure fast offensive momentum. Use Protect on Turn 1 to scout targets.`
+          },
+          {
+            title: "Pivot & Disruptive Lead",
+            p1: lead2[0],
+            p2: lead2[1],
+            desc: `Deploy ${formatPokemonName(lead2[0].name)} to disrupt opposing strategies (via Fake Out, Intimidate, or status) while ${formatPokemonName(lead2[1].name)} setups or chips away.`
+          },
+          {
+            title: trickRoomUser ? "Trick Room Setup" : "Anti-Meta / Defensive Lead",
+            p1: lead3[0],
+            p2: lead3[1],
+            desc: trickRoomUser
+              ? `Establish Trick Room with ${formatPokemonName(lead3[0].name)} on Turn 1. Once active, swap or attack immediately with slow powerhouse ${formatPokemonName(lead3[1].name)}.`
+              : `Slow defensive lead option. Excellent for matching against hyper-aggressive opponents or stall teams, playing standard pivot swaps.`
+          }
+        ];
+
+        // Pivots list
+        const pivots = [];
+        memberAnalyses.forEach(m => {
+          const pivotMoves = m.selectedMoves.filter(mv => ['u-turn', 'volt switch', 'parting shot', 'flip turn'].includes(mv.toLowerCase()));
+          if (pivotMoves.length > 0) {
+            pivots.push(`${formatPokemonName(m.name)} can pivot using ${pivotMoves.join(' / ')} to cycle abilities (like Intimidate) and escape bad matchups.`);
           }
         });
-        
-        let leads = [];
-        let backline = [];
-        if (activeTeamPokemon.length >= 4) {
-          const sortedBySpeed = [...activeTeamPokemon].sort((a,b) => {
-            const spA = a.stats.find(s => s.name === 'speed')?.value || 60;
-            const spB = b.stats.find(s => s.name === 'speed')?.value || 60;
-            return spB - spA;
-          });
-          leads = [sortedBySpeed[0], sortedBySpeed[1]];
-          backline = [sortedBySpeed[2], sortedBySpeed[3]];
-        } else {
-          leads = [activeTeamPokemon[0], activeTeamPokemon[1] || activeTeamPokemon[0]];
-          backline = [activeTeamPokemon[2] || activeTeamPokemon[0]];
-        }
-        
-        let opGuide = "";
-        const hasWater = primaryTypes.includes('water');
-        const hasFire = primaryTypes.includes('fire');
-        const hasGrass = primaryTypes.includes('grass');
-        const hasElectric = primaryTypes.includes('electric');
-        const hasFlying = primaryTypes.includes('flying');
-        const hasDragon = primaryTypes.includes('dragon');
-        const hasSteel = primaryTypes.includes('steel');
-        const hasFairy = primaryTypes.includes('fairy');
-        
-        // Determine team archetype and build a competitive guide
-        const offensivePoke = [...activeTeamPokemon].sort((a, b) => {
-          const getOff = p => Math.max(
-            p.stats.find(s => s.name === 'attack')?.value || 0,
-            p.stats.find(s => s.name === 'special-attack')?.value || 0
-          );
-          return getOff(b) - getOff(a);
-        });
-        const bulkyPoke = [...activeTeamPokemon].sort((a, b) => {
-          const getDefBulk = p => (p.stats.find(s => s.name === 'hp')?.value || 0) + (p.stats.find(s => s.name === 'defense')?.value || 0);
-          return getDefBulk(b) - getDefBulk(a);
-        });
-        const fastPoke = [...activeTeamPokemon].sort((a, b) => {
-          return (b.stats.find(s => s.name === 'speed')?.value || 0) - (a.stats.find(s => s.name === 'speed')?.value || 0);
-        });
-        const slowPoke = [...activeTeamPokemon].sort((a, b) => {
-          return (a.stats.find(s => s.name === 'speed')?.value || 0) - (b.stats.find(s => s.name === 'speed')?.value || 0);
-        });
 
-        const avgSpeed = activeTeamPokemon.reduce((acc, p) => acc + (p.stats.find(s => s.name === 'speed')?.value || 60), 0) / activeTeamPokemon.length;
-        const avgHpDef = activeTeamPokemon.reduce((acc, p) => acc + (p.stats.find(s => s.name === 'hp')?.value || 60) + (p.stats.find(s => s.name === 'defense')?.value || 60), 0) / activeTeamPokemon.length;
-        const isTrickRoomCandidate = avgSpeed < 55;
-        const isTailwindCandidate = avgSpeed >= 55 && avgSpeed < 85;
-
-        if (hasFire && hasWater && hasGrass) {
-          opGuide = `Classic Fire-Water-Grass core detected. In VGC Doubles, open with ${leads[0]?.name || 'your lead'} and ${leads[1]?.name || 'your support'} to establish board control. The FWG core provides natural offensive and defensive cycling — switch into your Water-type to absorb Fire attacks, your Grass-type to absorb Water attacks, and your Fire-type to resist Grass-type moves. Use spread moves (e.g. Heat Wave, Surf) to pressure both opponents simultaneously. Protect your ace on turn 1 to scout opponent leads.`;
-        } else if (hasDragon && hasSteel && hasFairy) {
-          opGuide = `Dragon-Steel-Fairy core active ("Fantasy Core"). In VGC, your Steel-type provides Intimidate or redirection support (Follow Me / Rage Powder) to protect your Dragon sweeper. Lead with your Fairy or Steel support to defuse opposing Dragon-type threats. Your Dragon attacker should be brought in mid-game after screens or Tailwind are established. Use your Fairy's immunity to Dragon-type moves as a free switch-in pivot to reset board advantage.`;
-        } else if (isTrickRoomCandidate) {
-          opGuide = `Your team's low average Speed (${Math.round(avgSpeed)}) suits a Trick Room strategy. Lead with your bulkiest slow Pokémon to set Trick Room on Turn 1 while using Protect on your primary attacker to scout. Once Trick Room is active, your slowest members move first — pivot aggressively and use high-power low-PP moves (Close Combat, Draco Meteor) to close games fast. Trick Room typically lasts 5 turns; plan your win condition within that window.`;
-        } else if (isTailwindCandidate) {
-          opGuide = `Your team benefits from Tailwind speed control (avg Speed: ${Math.round(avgSpeed)}). Lead with a Flying-type or fast support Pokémon to establish Tailwind on Turn 1, doubling your team's Speed for 4 turns. With speed advantage secured, your offensive Pokémon (${offensivePoke[0]?.name || 'your attacker'}) can outspeed and KO threats before they move. Coordinate spread moves with your fast attacker to pressure both opponents simultaneously.`;
-        } else {
-          opGuide = `High-speed offensive team (avg Speed: ${Math.round(avgSpeed)}). Prioritize aggressive leads — ${leads[0]?.name || 'your lead'} can outspeed most opponents and apply immediate pressure. Use your fastest Pokémon to control the pace with priority moves or speed tie resolution. Protect on Turn 1 is standard VGC practice to scout opponent moves. Bring your bulkiest Pokémon (${bulkyPoke[0]?.name || 'your support'}) as a pivot to absorb super-effective hits and create safe switches for your primary attacker.`;
+        const groundType = memberAnalyses.find(m => m.types.includes('ground'));
+        const electricFly = memberAnalyses.some(m => m.types.includes('water') || m.types.includes('flying'));
+        if (groundType && electricFly) {
+          pivots.push(`Switch ${formatPokemonName(groundType.name)} in on expected Electric attacks targeting your Water/Flying types for a free immune turn.`);
         }
-        
+
+        const flyingOrLev = memberAnalyses.find(m => m.types.includes('flying') || m.ability.toLowerCase() === 'levitate');
+        const weakToGround = memberAnalyses.some(m => m.types.includes('steel') || m.types.includes('fire') || m.types.includes('electric') || m.types.includes('poison') || m.types.includes('rock'));
+        if (flyingOrLev && weakToGround) {
+          pivots.push(`Pivoting to ${formatPokemonName(flyingOrLev.name)} is a safe switch on predicted Ground attacks (Earthquake/Stomping Tantrum).`);
+        }
+
+        if (pivots.length === 0) {
+          pivots.push("No explicit pivot moves detected. Focus on manual hard switches using type resistances to absorb super-effective hits.");
+        }
+
+        // Playbook vs weather / trick room / tailwind
+        let playbookVsTailwind = "To beat Tailwind teams, match their speed control using your own Tailwind, or set up Trick Room to reverse the speed brackets. Alternatively, lead defensively and use Protect to stall out their 4 turns of speed advantage.";
+        if (hasTrickRoom) {
+          playbookVsTailwind = "You have Trick Room! Match opposing Tailwind by setting up Trick Room on Turn 1. Their high speed will become their downfall, allowing your slower, heavier hitters to sweep.";
+        }
+
+        let playbookVsTrickRoom = "Against Trick Room, use Fake Out on their setter, or taunt them to deny the setup. If Trick Room is already active, pivot to your slowest Pokémon or use Protect to stall out the 5 turns of distortion.";
+        if (hasTrickRoom) {
+          playbookVsTrickRoom = "Since you have Trick Room, you can use Trick Room on the turn they set it to immediately reverse it, or simply play comfortably within their setup using your slow sweepers.";
+        }
+
+        let playbookVsWeather = "Weather teams (Rain/Sun) rely on weather setters. Deny their weather by leading with your own setter if you have one, or stall out their speed boost (Swift Swim/Chlorophyll) using Protect or pivoting.";
+        if (hasSunSetter || hasRainSetter || hasSandSetter || hasSnowSetter) {
+          playbookVsWeather = "You have your own weather setter! Lead with your backline setter or switch them in on Turn 1 to override their weather conditions, stripping them of speed and damage bonuses.";
+        }
+
         setAiReport({
-          ace: ace,
-          leads: leads,
-          backline: backline,
-          opGuide: opGuide
+          avgSpeed,
+          avgPhysicalBulk,
+          avgSpecialBulk,
+          avgHpDef, // back-compat
+          synergyScore,
+          speedTier,
+          hazards,
+          matrix,
+          physicalAce,
+          physicalAceAdvice,
+          specialAce,
+          specialAceAdvice,
+          leads,
+          pivots,
+          playbook: {
+            vsTailwind: playbookVsTailwind,
+            vsTrickRoom: playbookVsTrickRoom,
+            vsWeather: playbookVsWeather
+          },
+          archetype,
+          members: memberAnalyses
         });
         setAiLoading(false);
       }
@@ -2068,7 +2395,19 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
                                     </div>
                                     <div className="slot-badge-list">
                                       {b.ability && <span className="slot-build-badge slot-badge-ability" title={`Ability: ${b.ability}`}>{b.ability}</span>}
-                                      {b.heldItem && <span className="slot-build-badge slot-badge-item" title={`Item: ${b.heldItem}`}>{b.heldItem}</span>}
+                                      {b.heldItem && (
+                                        <span className="slot-build-badge slot-badge-item" title={`Item: ${b.heldItem}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
+                                          {getItemImageUrl(b.heldItem) && (
+                                            <img 
+                                              src={getItemImageUrl(b.heldItem)} 
+                                              alt="" 
+                                              style={{ width: '12px', height: '12px', objectFit: 'contain' }}
+                                              onError={(e) => { e.target.style.display = 'none'; }}
+                                            />
+                                          )}
+                                          {b.heldItem}
+                                        </span>
+                                      )}
                                       {b.nature && <span className="slot-build-badge slot-badge-nature" title={`Nature: ${b.nature}`}>{b.nature}</span>}
                                       {activeMoves.map((m, mIdx) => {
                                         const actualMoveIdx = b.moves.indexOf(m);
@@ -2377,23 +2716,36 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
                             {/* Held Item Select Dropdown */}
                             <div className="build-field">
                               <label>Held Item</label>
-                              <select 
-                                className="build-select"
-                                value={localBuild.heldItem || 'None'}
-                                onChange={(e) => setLocalBuild({ ...localBuild, heldItem: e.target.value })}
-                              >
-                                {(() => {
-                                  const options = getHeldItemOptions(activeEditBuild.pokemon);
-                                  if (localBuild.heldItem && !options.includes(localBuild.heldItem)) {
-                                    options.push(localBuild.heldItem);
-                                  }
-                                  return options.map(item => (
-                                    <option key={item} value={item}>
-                                      {item}
-                                    </option>
-                                  ));
-                                })()}
-                              </select>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                {localBuild.heldItem && localBuild.heldItem !== 'None' && getItemImageUrl(localBuild.heldItem) && (
+                                  <div style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '0.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', flexShrink: 0 }}>
+                                    <img 
+                                      src={getItemImageUrl(localBuild.heldItem)} 
+                                      alt={localBuild.heldItem}
+                                      style={{ width: '28px', height: '28px', objectFit: 'contain' }}
+                                      onError={(e) => { e.target.style.display = 'none'; }}
+                                    />
+                                  </div>
+                                )}
+                                <select 
+                                  className="build-select"
+                                  style={{ flex: 1 }}
+                                  value={localBuild.heldItem || 'None'}
+                                  onChange={(e) => setLocalBuild({ ...localBuild, heldItem: e.target.value })}
+                                >
+                                  {(() => {
+                                    const options = getHeldItemOptions(activeEditBuild.pokemon);
+                                    if (localBuild.heldItem && !options.includes(localBuild.heldItem)) {
+                                      options.push(localBuild.heldItem);
+                                    }
+                                    return options.map(item => (
+                                      <option key={item} value={item}>
+                                        {item}
+                                      </option>
+                                    ));
+                                  })()}
+                                </select>
+                              </div>
                             </div>
 
                             {/* 4 Moves Interactive Slots */}
@@ -2980,97 +3332,383 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
 
                       {aiReport && (
                         <div style={{
-                          background: 'rgba(255,255,255,0.8)',
+                          background: 'rgba(255,255,255,0.85)',
                           border: '1px solid var(--border-color)',
-                          borderRadius: '16px',
-                          padding: '1.5rem',
-                          boxShadow: '0 4px 20px rgba(99, 144, 240, 0.05)',
+                          borderRadius: '20px',
+                          padding: '2rem',
+                          boxShadow: '0 8px 30px rgba(99, 144, 240, 0.08)',
                           position: 'relative',
                           overflow: 'hidden'
                         }}>
+                          {/* Top Highlight strip */}
                           <div style={{
                             position: 'absolute',
                             top: 0,
                             left: 0,
-                            width: '4px',
-                            height: '100%',
-                            background: 'linear-gradient(to bottom, #6390f0, #ec4899)'
+                            width: '100%',
+                            height: '5px',
+                            background: 'linear-gradient(to right, #6390f0, #8b5cf6, #ec4899)'
                           }}></div>
                           
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
-                            <h4 style={{ fontSize: '1rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                              <i className="fa-solid fa-chart-pie" style={{ color: '#6390f0' }}></i> AI Strategic Report
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                            <h4 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <i className="fa-solid fa-brain" style={{ color: '#6390f0' }}></i> AI Strategic Coaching Board
                             </h4>
                             <button 
                               onClick={handleRunAiAnalysis}
+                              className="build-suggest-btn"
                               style={{
-                                background: 'none',
-                                border: 'none',
-                                color: 'var(--primary-color)',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.35rem',
+                                padding: '0.4rem 0.8rem',
+                                fontSize: '0.72rem',
                                 fontWeight: 700,
-                                fontSize: '0.75rem',
-                                cursor: 'pointer'
+                                background: 'rgba(99,144,240,0.06)',
+                                border: '1px solid rgba(99,144,240,0.15)',
+                                color: '#2563eb',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s'
                               }}
                             >
-                              Re-analyze
+                              <i className="fa-solid fa-arrows-rotate"></i> Re-Analyze Team
                             </button>
                           </div>
 
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.2rem' }}>
-                            {/* Lead & Backline Deployment */}
-                            <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(0,0,0,0.02)' }}>
-                              <h5 style={{ margin: '0 0 0.8rem 0', fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                                <i className="fa-solid fa-users-viewfinder" style={{ color: '#10b981', marginRight: '0.3rem' }}></i> Optimal VGC Lead & Backline
-                              </h5>
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem' }}>
-                                <div>
-                                  <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 700, display: 'block', marginBottom: '0.3rem' }}>LEADS:</span>
-                                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                    {aiReport.leads.map((p, idx) => (
-                                      <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', background: '#fff', padding: '0.3rem 0.6rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                                        <img src={p.image} alt={p.name} style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
-                                        <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'capitalize' }}>{p.name}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                                <div>
-                                  <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 700, display: 'block', marginBottom: '0.3rem' }}>BACKLINE:</span>
-                                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                    {aiReport.backline.map((p, idx) => (
-                                      <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', background: '#fff', padding: '0.3rem 0.6rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                                        <img src={p.image} alt={p.name} style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
-                                        <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'capitalize' }}>{p.name}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
+                          {/* 1. Team Metrics & Archetype */}
+                          <div className="coach-metrics-grid">
+                            <div className="coach-metric-card">
+                              <div className="coach-metric-icon coach-metric-icon--synergy">
+                                <i className="fa-solid fa-bolt"></i>
+                              </div>
+                              <div>
+                                <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', display: 'block', fontWeight: 700, textTransform: 'uppercase' }}>Synergy Score</span>
+                                <strong style={{ fontSize: '1.1rem', color: aiReport.synergyScore >= 80 ? '#10b981' : (aiReport.synergyScore >= 50 ? '#f59e0b' : '#ef4444') }}>
+                                  {aiReport.synergyScore}/100
+                                </strong>
+                              </div>
+                            </div>
+                            
+                            <div className="coach-metric-card">
+                              <div className="coach-metric-icon coach-metric-icon--speed">
+                                <i className="fa-solid fa-gauge-high"></i>
+                              </div>
+                              <div>
+                                <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', display: 'block', fontWeight: 700, textTransform: 'uppercase' }}>Avg Speed & Tier</span>
+                                <strong style={{ fontSize: '0.85rem', color: 'var(--text-primary)', display: 'block', marginTop: '0.1rem' }}>
+                                  {aiReport.avgSpeed} Spe ({aiReport.speedTier})
+                                </strong>
                               </div>
                             </div>
 
-                            {/* Carry/Ace */}
-                            <div style={{ background: '#fef3f7', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(236, 72, 153, 0.05)', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                              <div style={{ width: '60px', height: '60px', background: '#fff', borderRadius: '50%', border: '1.5px solid #ec4899', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <img src={aiReport.ace.image} alt={aiReport.ace.name} style={{ width: '50px', height: '50px', objectFit: 'contain' }} />
+                            <div className="coach-metric-card">
+                              <div className="coach-metric-icon coach-metric-icon--bulk">
+                                <i className="fa-solid fa-shield-halved"></i>
                               </div>
                               <div>
-                                <h5 style={{ margin: '0 0 0.2rem 0', fontSize: '0.85rem', fontWeight: 800, color: '#be185d' }}>
-                                  <i className="fa-solid fa-star" style={{ marginRight: '0.3rem' }}></i> Primary Carry (Ace)
-                                </h5>
-                                <p style={{ margin: 0, fontSize: '0.8rem', color: '#9d174d' }}>
-                                  <strong style={{ textTransform: 'capitalize' }}>{aiReport.ace.name}</strong> has been identified as your ace due to its high offensive stats. Focus on setting up Tailwind or screen support to maximize its damage.
+                                <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', display: 'block', fontWeight: 700, textTransform: 'uppercase' }}>Team Bulk Profile</span>
+                                <strong style={{ fontSize: '0.75rem', color: 'var(--text-primary)', display: 'block', marginTop: '0.15rem' }}>
+                                  Phys: {aiReport.avgPhysicalBulk} | Spec: {aiReport.avgSpecialBulk}
+                                </strong>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div style={{ background: 'rgba(99, 144, 240, 0.03)', border: '1px solid rgba(99, 144, 240, 0.1)', borderRadius: '12px', padding: '1rem', marginBottom: '1.5rem' }}>
+                            <span style={{ fontSize: '0.7rem', color: '#2563eb', fontWeight: 800, display: 'inline-block', padding: '0.15rem 0.4rem', background: 'rgba(59, 130, 246, 0.08)', borderRadius: '4px', marginBottom: '0.4rem' }}>
+                              ARCHETYPE: {aiReport.archetype.toUpperCase()}
+                            </span>
+                            <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: '1.45' }}>
+                              This custom layout functions as a <strong>{aiReport.archetype}</strong> core. It relies on coordinates of speed control, defensive pivots, and carrying elements to establish VGC board control.
+                            </p>
+                          </div>
+
+                          {/* 2. Defensive Synergy Matrix */}
+                          <div className="matrix-container">
+                            <h5 style={{ margin: '0 0 0.3rem 0', fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                              <i className="fa-solid fa-table-cells" style={{ color: '#10b981' }}></i> Defensive Synergy Matrix
+                            </h5>
+                            <p style={{ margin: '0 0 1rem 0', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                              Analysis of incoming type multipliers against your team members. Highlighted red cells indicate <strong style={{ color: '#ef4444' }}>Hazard Zones</strong> where 3+ members are weak without adequate resistances.
+                            </p>
+                            
+                            <div className="matrix-grid">
+                              {aiReport.matrix.map((item) => (
+                                <div 
+                                  key={item.type} 
+                                  className={`matrix-cell ${item.isHazard ? 'matrix-cell--hazard' : ''}`}
+                                  title={`${item.weakCount} Weak, ${item.resistCount} Resist, ${item.immuneCount} Immune`}
+                                >
+                                  <span 
+                                    className="matrix-type-badge" 
+                                    style={{ backgroundColor: TYPE_TRANSLATIONS[item.type]?.color || '#999' }}
+                                  >
+                                    {TYPE_TRANSLATIONS[item.type]?.name || item.type}
+                                  </span>
+                                  <div className="matrix-score-row">
+                                    {item.immuneCount > 0 && (
+                                      <span className="matrix-score-badge matrix-score-badge--immune" title="Immune members">
+                                        {item.immuneCount}x
+                                      </span>
+                                    )}
+                                    {item.weakCount > 0 && (
+                                      <span className={`matrix-score-badge ${item.isHazard ? 'matrix-score-badge--doubleweak' : 'matrix-score-badge--weak'}`} title="Weak members">
+                                        -{item.weakCount}
+                                      </span>
+                                    )}
+                                    {item.resistCount > 0 && (
+                                      <span className="matrix-score-badge matrix-score-badge--resist" title="Resistant members">
+                                        +{item.resistCount}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                            
+                            {aiReport.hazards.length > 0 && (
+                              <div style={{ marginTop: '0.8rem', background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.15)', borderRadius: '8px', padding: '0.6rem 0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                <i className="fa-solid fa-triangle-exclamation" style={{ color: '#ef4444', fontSize: '0.85rem' }}></i>
+                                <span style={{ fontSize: '0.75rem', color: '#b91c1c', fontWeight: 600 }}>
+                                  Critical Weakness Warning: Your team shares a shared weakness to <strong>{aiReport.hazards.join(', ')}</strong>. Guard these members using Protect or immunities.
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* 3. Double Carry Spotlight */}
+                          <div className="ace-spotlight-grid">
+                            <div className="ace-card ace-card--physical">
+                              <div className="ace-img-wrapper">
+                                <img src={aiReport.physicalAce.image} alt={aiReport.physicalAce.name} style={{ width: '48px', height: '48px', objectFit: 'contain' }} />
+                              </div>
+                              <div style={{ flex: 1 }}>
+                                <span className="ace-tag ace-tag--physical">Physical Carry / Ace</span>
+                                <h6 style={{ margin: '0 0 0.2rem 0', fontSize: '0.9rem', fontWeight: 800, textTransform: 'capitalize', color: 'var(--text-primary)' }}>
+                                  {formatPokemonName(aiReport.physicalAce.name)}
+                                </h6>
+                                <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                                  <strong>ATK: {aiReport.physicalAce.stats.attack}</strong>. {aiReport.physicalAceAdvice}
                                 </p>
                               </div>
                             </div>
 
-                            {/* Operating Guide */}
-                            <div style={{ background: '#f0fdf4', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(22, 163, 74, 0.05)' }}>
-                              <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem', fontWeight: 800, color: '#166534' }}>
-                                <i className="fa-solid fa-route" style={{ marginRight: '0.3rem' }}></i> Competitive Strategy Guide
-                              </h5>
-                              <p style={{ margin: 0, fontSize: '0.8rem', color: '#166534', lineHeight: 1.5 }}>
-                                {aiReport.opGuide}
-                              </p>
+                            <div className="ace-card ace-card--special">
+                              <div className="ace-img-wrapper">
+                                <img src={aiReport.specialAce.image} alt={aiReport.specialAce.name} style={{ width: '48px', height: '48px', objectFit: 'contain' }} />
+                              </div>
+                              <div style={{ flex: 1 }}>
+                                <span className="ace-tag ace-tag--special">Special Carry / Ace</span>
+                                <h6 style={{ margin: '0 0 0.2rem 0', fontSize: '0.9rem', fontWeight: 800, textTransform: 'capitalize', color: 'var(--text-primary)' }}>
+                                  {formatPokemonName(aiReport.specialAce.name)}
+                                </h6>
+                                <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                                  <strong>SPA: {aiReport.specialAce.stats['special-attack']}</strong>. {aiReport.specialAceAdvice}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* 4. Strategic Playbook & VGC Leads */}
+                          <div className="playbook-card">
+                            <h5 style={{ margin: '0 0 0.3rem 0', fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                              <i className="fa-solid fa-route" style={{ color: '#6390f0' }}></i> Tactical VGC Deployment Playbook
+                            </h5>
+                            <p style={{ margin: '0 0 1rem 0', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                              Optimized starting pairs (Leads) and pivot operations built around your builds and typing synergies.
+                            </p>
+
+                            <div className="playbook-leads-grid">
+                              {aiReport.leads.map((lead, idx) => (
+                                <div key={idx} className="playbook-lead-item">
+                                  <span style={{ fontSize: '0.68rem', fontWeight: 800, color: 'var(--primary-color)', textTransform: 'uppercase' }}>
+                                    {lead.title}
+                                  </span>
+                                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                    {lead.p1 && (
+                                      <div className="playbook-pokemon-mini">
+                                        <img src={lead.p1.image} alt="" style={{ width: '22px', height: '22px', objectFit: 'contain' }} />
+                                        <span>{formatPokemonName(lead.p1.name)}</span>
+                                      </div>
+                                    )}
+                                    {lead.p2 && (
+                                      <div className="playbook-pokemon-mini">
+                                        <img src={lead.p2.image} alt="" style={{ width: '22px', height: '22px', objectFit: 'contain' }} />
+                                        <span>{formatPokemonName(lead.p2.name)}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                  <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                                    {lead.desc}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Pivots Flow section */}
+                            <div className="playbook-pivot-flow">
+                              <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#2563eb', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                <i className="fa-solid fa-arrows-spin"></i> SWITCHING & PIVOTING SCHEMES (Cách luân chuyển)
+                              </span>
+                              {aiReport.pivots.map((pivot, idx) => (
+                                <div key={idx} className="playbook-pivot-step">
+                                  <span className="playbook-pivot-arrow"><i className="fa-solid fa-arrow-right-arrow-left"></i></span>
+                                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{pivot}</span>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Matchups guides */}
+                            <div style={{ marginTop: '1.2rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.8rem', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
+                              <div>
+                                <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-primary)', display: 'block', marginBottom: '0.3rem' }}>VS. TAILWIND (Đấu Tốc độ)</span>
+                                <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>{aiReport.playbook.vsTailwind}</p>
+                              </div>
+                              <div>
+                                <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-primary)', display: 'block', marginBottom: '0.3rem' }}>VS. TRICK ROOM (Đấu Không Gian)</span>
+                                <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>{aiReport.playbook.vsTrickRoom}</p>
+                              </div>
+                              <div>
+                                <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-primary)', display: 'block', marginBottom: '0.3rem' }}>VS. WEATHER CORES (Đấu Thời Tiết)</span>
+                                <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>{aiReport.playbook.vsWeather}</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* 5. Individual Deep Dive Panel */}
+                          <div style={{ marginTop: '1rem', borderTop: '1px solid var(--border-color)', paddingTop: '1.2rem' }}>
+                            <h5 style={{ margin: '0 0 1rem 0', fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                              <i className="fa-solid fa-address-card" style={{ color: 'var(--primary-color)' }}></i> Member Custom Builds & Stats Breakdown
+                            </h5>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.2rem' }}>
+                              {aiReport.members.map((member) => {
+                                const totalStatVal = Object.values(member.stats).reduce((a, b) => a + b, 0);
+                                const hasEvsSet = Object.values(member.evs).some(v => v > 0);
+                                
+                                // Format EV string for display
+                                const evLabelArray = [];
+                                if (member.evs.hp) evLabelArray.push(`${member.evs.hp} HP`);
+                                if (member.evs.attack) evLabelArray.push(`${member.evs.attack} Atk`);
+                                if (member.evs.defense) evLabelArray.push(`${member.evs.defense} Def`);
+                                if (member.evs['special-attack']) evLabelArray.push(`${member.evs['special-attack']} SpA`);
+                                if (member.evs['special-defense']) evLabelArray.push(`${member.evs['special-defense']} SpD`);
+                                if (member.evs.speed) evLabelArray.push(`${member.evs.speed} Spe`);
+                                const evDisplayString = evLabelArray.length > 0 ? evLabelArray.join(' / ') : '0 EVs';
+
+                                return (
+                                  <div key={member.id} className="member-card-wrapper" style={{ background: '#ffffff', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '1.2rem', display: 'flex', flexDirection: 'column', gap: '0.8rem', boxShadow: '0 2px 10px rgba(0,0,0,0.015)' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                                      <div style={{ background: '#f1f5f9', borderRadius: '50%', width: '54px', height: '54px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-color)', flexShrink: 0 }}>
+                                        <img src={member.image} alt={member.name} style={{ width: '44px', height: '44px', objectFit: 'contain' }} />
+                                      </div>
+                                      <div style={{ flex: 1, minWidth: 0 }}>
+                                        <h6 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 800, textTransform: 'capitalize', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                          {formatPokemonName(member.name)}
+                                          {member.id === aiReport.physicalAce.id && (
+                                            <span className="ace-tag ace-tag--physical" style={{ fontSize: '0.55rem', padding: '0.05rem 0.25rem', marginBottom: 0 }}>Phys Ace</span>
+                                          )}
+                                          {member.id === aiReport.specialAce.id && (
+                                            <span className="ace-tag ace-tag--special" style={{ fontSize: '0.55rem', padding: '0.05rem 0.25rem', marginBottom: 0 }}>Spec Ace</span>
+                                          )}
+                                        </h6>
+                                        <div style={{ display: 'flex', gap: '0.2rem', marginTop: '0.2rem', flexWrap: 'wrap' }}>
+                                          {member.types.map(t => (
+                                            <span key={t} style={{ fontSize: '0.62rem', backgroundColor: TYPE_TRANSLATIONS[t]?.color || '#999', color: '#ffffff', padding: '0.05rem 0.35rem', borderRadius: '4px', fontWeight: 700 }}>
+                                              {TYPE_TRANSLATIONS[t]?.name || t}
+                                            </span>
+                                          ))}
+                                          {hasEvsSet && (
+                                            <span className="member-ev-badge">CUSTOM EVs</span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', background: '#f8fafc', padding: '0.6rem', borderRadius: '8px', border: '1px solid rgba(0,0,0,0.02)', lineHeight: '1.4' }}>
+                                      <strong>VGC Role:</strong> {member.roleDesc}
+                                    </div>
+
+                                    {/* Build details */}
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.6rem', fontSize: '0.72rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.8rem' }}>
+                                      <div>
+                                        <span style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '0.65rem' }}>ABILITY:</span>
+                                        <strong style={{ display: 'block', textTransform: 'capitalize', color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                                          {member.ability.replaceAll('-', ' ')}
+                                        </strong>
+                                      </div>
+                                      <div>
+                                        <span style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '0.65rem' }}>HELD ITEM:</span>
+                                        <strong style={{ display: 'block', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
+                                          {member.heldItem !== 'None' && getItemImageUrl(member.heldItem) && (
+                                            <img src={getItemImageUrl(member.heldItem)} alt="" style={{ width: '12px', height: '12px', objectFit: 'contain' }} />
+                                          )}
+                                          <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{member.heldItem}</span>
+                                        </strong>
+                                      </div>
+                                      <div>
+                                        <span style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '0.65rem' }}>NATURE:</span>
+                                        <strong style={{ display: 'block', color: 'var(--text-primary)' }}>{member.nature}</strong>
+                                      </div>
+                                      <div>
+                                        <span style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '0.65rem' }}>EV SPREAD:</span>
+                                        <strong style={{ display: 'block', color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={evDisplayString}>
+                                          {evDisplayString}
+                                        </strong>
+                                      </div>
+                                      <div style={{ gridColumn: 'span 2' }}>
+                                        <span style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '0.65rem' }}>ACTIVE MOVES:</span>
+                                        <strong style={{ display: 'block', color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={member.selectedMoves.join(', ') || 'None set'}>
+                                          {member.selectedMoves.length > 0 ? member.selectedMoves.join(' / ') : 'None configured'}
+                                        </strong>
+                                      </div>
+                                    </div>
+
+                                    {/* Coach's Optimization Box for each member */}
+                                    {member.coachTips.length > 0 && (
+                                      <div className="coach-opt-box">
+                                        <div className="coach-opt-title">
+                                          <i className="fa-solid fa-circle-info"></i> Coach's Optimization Tips
+                                        </div>
+                                        {member.coachTips.map((tip, idx) => (
+                                          <div key={idx} className="coach-opt-item">
+                                            {tip}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+
+                                    {/* Stats Bars - showing Calculated stats at Level 50 */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginTop: '0.2rem' }}>
+                                      <span style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-secondary)', display: 'block', letterSpacing: '0.5px' }}>CALCULATED VGC STATS (LV 50):</span>
+                                      {Object.entries(member.stats).map(([statName, statVal]) => {
+                                        const label = statName === 'special-attack' ? 'SPA' : (statName === 'special-defense' ? 'SPD' : (statName === 'attack' ? 'ATK' : (statName === 'defense' ? 'DEF' : statName.toUpperCase())));
+                                        const color = statName === 'hp' ? '#10b981' : 
+                                                      statName === 'attack' ? '#f59e0b' : 
+                                                      statName === 'defense' ? '#f97316' : 
+                                                      statName === 'special-attack' ? '#8b5cf6' : 
+                                                      statName === 'special-defense' ? '#3b82f6' : 
+                                                      '#ec4899';
+                                        
+                                        const pct = Math.min((statVal / 250) * 100, 100);
+                                        return (
+                                          <div key={statName} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.68rem' }}>
+                                            <span style={{ width: '28px', color: 'var(--text-secondary)', fontWeight: 700 }}>{label}</span>
+                                            <span style={{ width: '22px', textAlign: 'right', fontWeight: 800, color: 'var(--text-primary)' }}>{statVal}</span>
+                                            <div style={{ flex: 1, height: '6px', background: '#f1f5f9', borderRadius: '3px', overflow: 'hidden' }}>
+                                              <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: '3px' }}></div>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-secondary)', marginTop: '0.2rem', borderTop: '1px dashed #f1f5f9', paddingTop: '0.3rem' }}>
+                                        <span>STAT TOTAL</span>
+                                        <span style={{ color: 'var(--primary-color)', fontWeight: 800 }}>{totalStatVal}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                         </div>
@@ -3200,9 +3838,31 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
                       <p style={{ margin: '0.4rem 0 0.6rem 0', fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
                         {suggestionResult.description}
                       </p>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--primary-color)', fontWeight: 700 }}>
-                        <i className="fa-solid fa-square-rss" style={{ marginRight: '0.3rem' }}></i>Source: {suggestionResult.source}
-                      </span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.8rem' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--primary-color)', fontWeight: 700 }}>
+                          <i className="fa-solid fa-square-rss" style={{ marginRight: '0.3rem' }}></i>Source: {suggestionResult.source}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleDeploySuggestedTeam}
+                          style={{
+                            padding: '0.4rem 1rem',
+                            fontSize: '0.75rem',
+                            fontWeight: 800,
+                            borderRadius: '8px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.4rem',
+                            cursor: 'pointer',
+                            background: 'var(--primary-color)',
+                            color: '#ffffff',
+                            border: 'none',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.06)'
+                          }}
+                        >
+                          <i className="fa-solid fa-cloud-arrow-down"></i> Deploy Entire Team (Lắp nhanh cả đội)
+                        </button>
+                      </div>
                     </div>
                   )}
 
@@ -3217,17 +3877,82 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
                             style={{ 
                               opacity: p.isOwned ? 1 : 0.75, 
                               border: p.isOwned ? '1px solid var(--border-color)' : '1px dashed var(--border-color)',
-                              cursor: p.isOwned ? 'pointer' : 'default'
+                              cursor: 'pointer'
                             }}
-                            onClick={() => {
+                            onClick={async () => {
                               if (p.isOwned) {
                                 const emptyIdx = teams[activeTeamIdx].findIndex(id => id === null);
                                 if (emptyIdx !== -1) {
                                   const newTeams = [...teams];
                                   newTeams[activeTeamIdx][emptyIdx] = p.id;
                                   handleSaveTeams(newTeams);
+                                  
+                                  // Initialize default build
+                                  const key = `${activeTeamIdx}_${emptyIdx}`;
+                                  if (!builds[key]) {
+                                    const pDetails = allPokemon.find(item => item.id === p.id);
+                                    if (pDetails) {
+                                      const defaultBuild = {
+                                        ability: pDetails.abilities?.[0] || '',
+                                        heldItem: getSuggestedItem ? getSuggestedItem(pDetails) : '',
+                                        nature: getSuggestedNature ? getSuggestedNature(pDetails) : 'Serious',
+                                        evs: getSuggestedEvSpread && parseEvSpreadString ? parseEvSpreadString(getSuggestedEvSpread(pDetails)) : { hp: 0, attack: 0, defense: 0, 'special-attack': 0, 'special-defense': 0, speed: 0 },
+                                        moves: ['', '', '', '']
+                                      };
+                                      const updatedBuilds = { ...builds, [key]: defaultBuild };
+                                      setBuilds(updatedBuilds);
+                                      const trainerId = trainer.id || trainer._id;
+                                      if (typeof window !== 'undefined' && trainerId) {
+                                        localStorage.setItem(`trainer_builds_${trainerId}`, JSON.stringify(updatedBuilds));
+                                      }
+                                    }
+                                  }
                                 } else {
                                   alert("Active team is full! Remove a member first.");
+                                }
+                              } else {
+                                if (window.confirm(`This Pokémon is not in your collection yet. Add it and put it in your team?`)) {
+                                  try {
+                                    const res = await fetch('/api/trainer/pokemon', {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ pokemonId: p.id, action: 'add' }),
+                                    });
+                                    const data = await res.json();
+                                    if (!res.ok) throw new Error(data.error);
+                                    setTrainer(data.trainer);
+                                    
+                                    // Add to team slot
+                                    const emptyIdx = teams[activeTeamIdx].findIndex(id => id === null);
+                                    if (emptyIdx !== -1) {
+                                      const newTeams = [...teams];
+                                      newTeams[activeTeamIdx][emptyIdx] = p.id;
+                                      handleSaveTeams(newTeams);
+
+                                      // Initialize default build
+                                      const key = `${activeTeamIdx}_${emptyIdx}`;
+                                      const pDetails = allPokemon.find(item => item.id === p.id);
+                                      if (pDetails) {
+                                        const defaultBuild = {
+                                          ability: pDetails.abilities?.[0] || '',
+                                          heldItem: getSuggestedItem ? getSuggestedItem(pDetails) : '',
+                                          nature: getSuggestedNature ? getSuggestedNature(pDetails) : 'Serious',
+                                          evs: getSuggestedEvSpread && parseEvSpreadString ? parseEvSpreadString(getSuggestedEvSpread(pDetails)) : { hp: 0, attack: 0, defense: 0, 'special-attack': 0, 'special-defense': 0, speed: 0 },
+                                          moves: ['', '', '', '']
+                                        };
+                                        const updatedBuilds = { ...builds, [key]: defaultBuild };
+                                        setBuilds(updatedBuilds);
+                                        const trainerId = data.trainer.id || data.trainer._id;
+                                        if (typeof window !== 'undefined' && trainerId) {
+                                          localStorage.setItem(`trainer_builds_${trainerId}`, JSON.stringify(updatedBuilds));
+                                        }
+                                      }
+                                    } else {
+                                      alert("Active team is full! Remove a member first.");
+                                    }
+                                  } catch (err) {
+                                    alert("Failed to add Pokémon: " + err.message);
+                                  }
                                 }
                               }
                             }}
