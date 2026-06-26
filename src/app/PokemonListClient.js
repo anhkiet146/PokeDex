@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { formatPokemonName, groupPokemonWithMegaVariants } from '@/lib/competitive';
 
 const TYPE_TRANSLATIONS = {
   normal: { name: 'Normal', color: '#A8A77A', light: '#f6f6f1' },
@@ -57,19 +58,29 @@ export default function PokemonListClient({ initialPokemon }) {
   // Reset to page 1 when search/type/sort changes
   useEffect(() => { setPage(1); }, [searchQuery, selectedType, currentSort]);
 
-  const uniqueTypes = Array.from(new Set(initialPokemon.flatMap(p => p.types))).sort();
+  const orderedPokemon = groupPokemonWithMegaVariants(initialPokemon);
+  const uniqueTypes = Array.from(new Set(orderedPokemon.flatMap(p => p.types))).sort();
 
-  const filteredPokemon = initialPokemon.filter(poke => {
-    const matchesSearch = poke.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+  const filteredPokemon = orderedPokemon.filter(poke => {
+    const displayName = formatPokemonName(poke.name).toLowerCase();
+    const normalizedSearch = searchQuery.toLowerCase();
+    const matchesSearch = poke.name.toLowerCase().includes(normalizedSearch) ||
+                          displayName.includes(normalizedSearch) ||
                           poke.id.toString().includes(searchQuery);
     const matchesType = selectedType === 'all' || poke.types.includes(selectedType);
     return matchesSearch && matchesType;
   });
 
-  if (currentSort === 'id-asc') filteredPokemon.sort((a, b) => a.id - b.id);
+  if (currentSort === 'id-asc') {
+    filteredPokemon.sort((a, b) => {
+      const indexA = orderedPokemon.findIndex(p => p.name === a.name);
+      const indexB = orderedPokemon.findIndex(p => p.name === b.name);
+      return indexA - indexB;
+    });
+  }
   else if (currentSort === 'id-desc') filteredPokemon.sort((a, b) => b.id - a.id);
-  else if (currentSort === 'name-asc') filteredPokemon.sort((a, b) => a.name.localeCompare(b.name));
-  else if (currentSort === 'name-desc') filteredPokemon.sort((a, b) => b.name.localeCompare(a.name));
+  else if (currentSort === 'name-asc') filteredPokemon.sort((a, b) => formatPokemonName(a.name).localeCompare(formatPokemonName(b.name)));
+  else if (currentSort === 'name-desc') filteredPokemon.sort((a, b) => formatPokemonName(b.name).localeCompare(formatPokemonName(a.name)));
 
   const totalPages = Math.max(1, Math.ceil(filteredPokemon.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -201,7 +212,7 @@ export default function PokemonListClient({ initialPokemon }) {
                       <img src={poke.image} alt={poke.name} />
                     </div>
                     <div className="card-info">
-                      <h3 className="card-pokemon-name">{poke.name}</h3>
+                      <h3 className="card-pokemon-name">{formatPokemonName(poke.name)}</h3>
                       <div className="card-types">
                         {poke.types.map(type => {
                           const trans = TYPE_TRANSLATIONS[type] || { name: type, color: '#999' };

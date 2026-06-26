@@ -1,9 +1,16 @@
 import Link from 'next/link';
-import dbConnect from '@/lib/db';
-import Build from '@/lib/models/Build';
-import { getSession } from '@/lib/auth';
 import { getPokemonList } from '@/lib/pokemon';
-import SubmitBuildForm from './SubmitBuildForm';
+import {
+  createBuildSuggestions,
+  formatPokemonName,
+  getBattleRole,
+  getMoveCandidates,
+  getMoveDetails,
+  getSuggestedEvSpread,
+  getSuggestedItem,
+  getSuggestedNature,
+  normalizeAbilities,
+} from '@/lib/competitive';
 
 const TYPE_TRANSLATIONS = {
   normal: { name: 'Normal', color: '#A8A77A' },
@@ -35,8 +42,29 @@ const STATS_MAP_V3 = {
   'speed': { name: 'SPE', color: '#f59e0b' } // Orange/Yellow
 };
 
+const TYPE_CHART = {
+  normal: { weak: ['fighting'], resist: [], immune: ['ghost'] },
+  fire: { weak: ['water', 'ground', 'rock'], resist: ['fire', 'grass', 'ice', 'bug', 'steel', 'fairy'], immune: [] },
+  water: { weak: ['electric', 'grass'], resist: ['fire', 'water', 'ice', 'steel'], immune: [] },
+  electric: { weak: ['ground'], resist: ['electric', 'flying', 'steel'], immune: [] },
+  grass: { weak: ['fire', 'ice', 'poison', 'flying', 'bug'], resist: ['water', 'electric', 'grass', 'ground'], immune: [] },
+  ice: { weak: ['fire', 'fighting', 'rock', 'steel'], resist: ['ice'], immune: [] },
+  fighting: { weak: ['flying', 'psychic', 'fairy'], resist: ['bug', 'rock', 'dark'], immune: [] },
+  poison: { weak: ['ground', 'psychic'], resist: ['grass', 'fighting', 'poison', 'bug', 'fairy'], immune: [] },
+  ground: { weak: ['water', 'grass', 'ice'], resist: ['poison', 'rock'], immune: ['electric'] },
+  flying: { weak: ['electric', 'ice', 'rock'], resist: ['grass', 'fighting', 'bug'], immune: ['ground'] },
+  psychic: { weak: ['bug', 'ghost', 'dark'], resist: ['fighting', 'psychic'], immune: [] },
+  bug: { weak: ['fire', 'flying', 'rock'], resist: ['grass', 'fighting', 'ground'], immune: [] },
+  rock: { weak: ['water', 'grass', 'fighting', 'ground', 'steel'], resist: ['normal', 'fire', 'poison', 'flying'], immune: [] },
+  ghost: { weak: ['ghost', 'dark'], resist: ['poison', 'bug'], immune: ['normal', 'fighting'] },
+  dragon: { weak: ['ice', 'dragon', 'fairy'], resist: ['fire', 'water', 'electric', 'grass'], immune: [] },
+  dark: { weak: ['fighting', 'bug', 'fairy'], resist: ['ghost', 'dark'], immune: ['psychic'] },
+  steel: { weak: ['fire', 'fighting', 'ground'], resist: ['normal', 'grass', 'ice', 'flying', 'psychic', 'bug', 'rock', 'dragon', 'steel', 'fairy'], immune: ['poison'] },
+  fairy: { weak: ['poison', 'steel'], resist: ['fighting', 'bug', 'dark'], immune: ['dragon'] }
+};
+
 async function getPokemonDetail(id) {
-  const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${id}`);
+  const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${id}`, { next: { revalidate: 60 * 60 * 24 * 7 } });
   if (!res.ok) throw new Error('Pokemon not found');
   const detail = await res.json();
   return {
@@ -46,19 +74,21 @@ async function getPokemonDetail(id) {
     types: detail.types.map(t => t.type.name),
     height: detail.height,
     weight: detail.weight,
-    abilities: detail.abilities.map(a => a.ability.name),
-    stats: detail.stats.map(s => ({ name: s.stat.name, value: s.base_stat }))
+    abilities: detail.abilities.map(a => ({ name: a.ability.name, isHidden: a.is_hidden })),
+    stats: detail.stats.map(s => ({ name: s.stat.name, value: s.base_stat })),
+    heldItems: detail.held_items.map(item => item.item.name),
+    raw: detail
   };
 }
 
 async function getPokemonSpecies(id) {
-  const res = await fetch(`https://pokeapi.co/api/v2/pokemon-species/${id}`);
+  const res = await fetch(`https://pokeapi.co/api/v2/pokemon-species/${id}`, { next: { revalidate: 60 * 60 * 24 * 7 } });
   if (!res.ok) throw new Error('Pokemon species not found');
   return await res.json();
 }
 
 async function getEvolutionChain(url) {
-  const res = await fetch(url);
+  const res = await fetch(url, { next: { revalidate: 60 * 60 * 24 * 7 } });
   if (!res.ok) throw new Error('Evolution chain not found');
   return await res.json();
 }
@@ -79,6 +109,95 @@ function parseEvolutionChain(chain) {
   return list;
 }
 
+function getTypeMatchups(types) {
+  return Object.keys(TYPE_CHART)
+    .map(attackType => {
+      const multiplier = types.reduce((value, defendType) => {
+        const chart = TYPE_CHART[defendType];
+        if (chart.immune.includes(attackType)) return 0;
+        if (chart.weak.includes(attackType)) return value * 2;
+        if (chart.resist.includes(attackType)) return value * 0.5;
+        return value;
+      }, 1);
+
+      return { type: attackType, multiplier };
+    })
+    .sort((a, b) => b.multiplier - a.multiplier || a.type.localeCompare(b.type));
+}
+
+function getDefensiveMultiplier(attackType, defenderTypes) {
+  return defenderTypes.reduce((value, defendType) => {
+    const chart = TYPE_CHART[defendType];
+    if (chart.immune.includes(attackType)) return 0;
+    if (chart.weak.includes(attackType)) return value * 2;
+    if (chart.resist.includes(attackType)) return value * 0.5;
+    return value;
+  }, 1);
+}
+
+function getRelatedPokemon(currentPokemon, pokemonList, weaknesses) {
+  const currentTypes = new Set(currentPokemon.types);
+  const currentRole = getBattleRole(currentPokemon);
+  const currentTotal = Object.values(currentPokemon.stats || {}).reduce((sum, value) => sum + value, 0);
+
+  return pokemonList
+    .filter(candidate => candidate.id !== currentPokemon.id && !candidate.isMega)
+    .map(candidate => {
+      const sharedTypes = candidate.types.filter(type => currentTypes.has(type));
+      const coversWeaknesses = weaknesses.filter(weakness => (
+        getDefensiveMultiplier(weakness.type, candidate.types) < 1
+      ));
+      const role = getBattleRole(candidate);
+      const candidateTotal = Object.values(candidate.stats || {}).reduce((sum, value) => sum + value, 0);
+      const statFitBonus = Math.abs(candidateTotal - currentTotal) <= 80 ? 1 : 0;
+      const roleBonus = role !== currentRole ? 1 : 0;
+      const score = sharedTypes.length * 4 + coversWeaknesses.length * 5 + roleBonus + statFitBonus;
+      const reason = coversWeaknesses.length > 0
+        ? `Resists ${coversWeaknesses.slice(0, 2).map(item => formatPokemonName(item.type)).join(' / ')}`
+        : sharedTypes.length > 0
+          ? `Same ${sharedTypes.map(formatPokemonName).join(' / ')} type`
+          : role;
+
+      return {
+        ...candidate,
+        role,
+        reason,
+        score
+      };
+    })
+    .filter(candidate => candidate.score > 0)
+    .sort((a, b) => b.score - a.score || a.id - b.id)
+    .slice(0, 3);
+}
+
+function buildEvolutionChainWithMega(evoChain, pokemonList) {
+  const expanded = [];
+
+  evoChain.forEach((evo, index) => {
+    expanded.push({
+      ...evo,
+      stage: index === 0 ? 'Basic' : index === 1 ? 'Stage 1' : 'Stage 2',
+      isMega: false
+    });
+
+    const megaVariants = pokemonList
+      .filter(p => p.isMega && p.name.replace(/-mega(?:-[xy])?$/, '') === evo.name)
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    megaVariants.forEach(mega => {
+      expanded.push({
+        id: mega.id,
+        name: mega.name,
+        image: mega.image,
+        stage: 'Mega',
+        isMega: true
+      });
+    });
+  });
+
+  return expanded;
+}
+
 export default async function PokemonDetailPage({ params }) {
   const { id } = await params;
   const pokemonId = Number(id);
@@ -97,19 +216,21 @@ export default async function PokemonDetailPage({ params }) {
     }
 
     // Fetch parallel APIs
-    const [pokemon, species, session] = await Promise.all([
-      cachedPoke ? Promise.resolve(cachedPoke) : getPokemonDetail(pokemonId),
-      getPokemonSpecies(speciesIdOrName),
-      getSession()
+    const [livePokemon, species] = await Promise.all([
+      getPokemonDetail(pokemonId),
+      getPokemonSpecies(speciesIdOrName)
     ]);
-
-    // Fetch database custom builds
-    await dbConnect();
-    const builds = await Build.find({ pokemonId }).sort({ createdAt: -1 });
+    const pokemon = {
+      ...livePokemon,
+      isMega: cachedPoke?.isMega || false
+    };
 
     // Fetch evolution details
     const evoData = await getEvolutionChain(species.evolution_chain.url);
     const evoChain = parseEvolutionChain(evoData.chain);
+    const displayEvolutionChain = buildEvolutionChainWithMega(evoChain, pokemonList);
+    const baseEvolutionChain = displayEvolutionChain.filter(evo => !evo.isMega);
+    const megaEvolutionBranches = displayEvolutionChain.filter(evo => evo.isMega);
 
     // Filter description (English flavor text)
     let description = 'No description available in English.';
@@ -125,27 +246,24 @@ export default async function PokemonDetailPage({ params }) {
       '--modal-header-color': `${transColor}20`,
     };
 
-    // Mock competitive info for visual matches
-    const tier = pokemon.id <= 3 ? 'TIER: OU/Uber' : pokemon.id <= 15 ? 'TIER: UU/OU' : 'TIER: RU/NU';
-    const primaryAbility = pokemon.abilities[0] || 'Inner Focus';
-    const heldItem = pokemon.types.includes('fire') ? 'Life Orb' : 'Leftovers';
-    const nature = pokemon.stats[5]?.value > 90 ? 'Timid' : 'Adamant';
-    const evSpread = pokemon.stats[1]?.value > pokemon.stats[3]?.value 
-      ? '252 Atk / 4 SpD / 252 Spe' 
-      : '252 SpA / 4 SpD / 252 Spe';
-
-    const mockMoves = [
-      { name: 'Nasty Plot', desc: 'Boosts Special Attack by 2 stages. Use on forced switches to setup for a sweep.', type: 'dark', category: 'status' },
-      { name: 'Aura Sphere', desc: 'High-accuracy Fighting STAB. Never misses. Perfect for hitting Steel and Normal types.', type: 'fighting', category: 'special' },
-      { name: 'Flash Cannon', desc: 'Secondary STAB. Coverage for Fairy and Ice types. 10% chance to lower SpD.', type: 'steel', category: 'special' },
-      { name: 'Vacuum Wave', desc: 'Vital priority move. Clean up weakened faster threats before they can hit.', type: 'fighting', category: 'special' }
-    ];
-
-    const mockTeammates = [
-      { id: 149, name: 'Dragonite', role: 'Wall Breaker / Multi-Scale' },
-      { id: 445, name: 'Garchomp', role: 'Stealth Rock Setter' },
-      { id: 637, name: 'Volcarona', role: 'Quiver Dance Sweeper' }
-    ];
+    const abilities = normalizeAbilities(pokemon.abilities);
+    const primaryAbility = abilities[0]?.name || 'unknown';
+    const battleRole = getBattleRole(pokemon);
+    const heldItem = getSuggestedItem(pokemon);
+    const nature = getSuggestedNature(pokemon);
+    const evSpread = getSuggestedEvSpread(pokemon);
+    const totalStats = pokemon.stats.reduce((sum, stat) => sum + stat.value, 0);
+    const typeMatchups = getTypeMatchups(pokemon.types);
+    const matchupGroups = {
+      weak: typeMatchups.filter(item => item.multiplier > 1),
+      resist: typeMatchups.filter(item => item.multiplier > 0 && item.multiplier < 1),
+      immune: typeMatchups.filter(item => item.multiplier === 0),
+      neutral: typeMatchups.filter(item => item.multiplier === 1)
+    };
+    const relatedPokemon = getRelatedPokemon(pokemon, pokemonList, matchupGroups.weak);
+    const learnset = getMoveCandidates(pokemon.raw);
+    const moveDetails = await getMoveDetails(learnset.moves, Number.POSITIVE_INFINITY);
+    const buildSuggestions = createBuildSuggestions(pokemon, moveDetails, abilities);
 
     return (
       <main className="app-container" style={detailHeaderStyle}>
@@ -163,7 +281,7 @@ export default async function PokemonDetailPage({ params }) {
             National Dex #{pokemon.id.toString().padStart(4, '0')}
           </span>
           <h2 style={{ fontSize: '2.5rem', fontWeight: 800, textTransform: 'capitalize', color: 'var(--text-primary)', marginTop: '0.2rem' }}>
-            {pokemon.name}
+            {formatPokemonName(pokemon.name)}
           </h2>
           <div className="detail-meta-tags">
             {pokemon.types.map(t => {
@@ -174,7 +292,7 @@ export default async function PokemonDetailPage({ params }) {
                 </span>
               );
             })}
-            <span className="detail-tier-badge">{tier}</span>
+            <span className="detail-tier-badge">{battleRole}</span>
           </div>
         </section>
 
@@ -183,13 +301,6 @@ export default async function PokemonDetailPage({ params }) {
           
           {/* Main Stats and Builds Column */}
           <div className="detail-main-info">
-            
-            {/* Description Card */}
-            <div style={{ background: '#ffffff', border: '1px solid var(--border-color)', borderRadius: '20px', padding: '1.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
-              <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6', fontSize: '0.95rem' }}>
-                {description}
-              </p>
-            </div>
 
             {/* Base Stats Analysis */}
             <div className="stats-card-v3">
@@ -210,29 +321,35 @@ export default async function PokemonDetailPage({ params }) {
                     </div>
                   );
                 })}
+                <div className="stat-row-v3 stat-total-row">
+                  <span className="stat-name-v3">TOTAL</span>
+                  <span className="stat-value-v3">{totalStats}</span>
+                  <div className="stat-bar-container-v3">
+                    <div
+                      className="stat-bar-fill-v3"
+                      style={{ width: `${Math.min((totalStats / 720) * 100, 100)}%`, backgroundColor: 'var(--primary-color)' }}
+                    ></div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Standard Build Panel (4 Grid Cards) */}
+            {/* Battle data summary */}
             <div>
               <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
-                Standard Special Attacker / Nasty Plot
+                Battle Data
               </h3>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1.2rem' }}>
-                Current Meta Competitive Build - Gen 9
-              </p>
-              
               <div className="standard-build-grid">
                 <div className="build-feature-card">
                   <i className="fa-solid fa-bolt build-feature-icon"></i>
                   <span className="build-feature-label">Ability</span>
                   <span className="build-feature-value" style={{ textTransform: 'capitalize' }}>
-                    {primaryAbility.replace('-', ' ')}
+                    {formatPokemonName(primaryAbility)}
                   </span>
                 </div>
                 <div className="build-feature-card">
                   <i className="fa-solid fa-bag-shopping build-feature-icon" style={{ color: '#ec4899' }}></i>
-                  <span className="build-feature-label">Held Item</span>
+                  <span className="build-feature-label">Suggested Held Item</span>
                   <span className="build-feature-value">{heldItem}</span>
                 </div>
                 <div className="build-feature-card">
@@ -248,37 +365,90 @@ export default async function PokemonDetailPage({ params }) {
               </div>
             </div>
 
-            {/* Moveset Grid (2x2 Grid) */}
-            <div className="moveset-grid-v3">
-              {mockMoves.map((m, idx) => {
-                const typeColor = TYPE_TRANSLATIONS[m.type]?.color || '#999';
-                return (
-                  <div key={m.name} className="move-card-v3">
-                    <div className="move-icon-indicator">
-                      <span style={{ fontSize: '0.75rem', fontWeight: 800 }}>M{idx + 1}</span>
+            {/* Suggested build directions */}
+            <div>
+              <h3 className="trainer-section-title" style={{ fontSize: '1.15rem', marginBottom: '0.5rem' }}>
+                <i className="fa-solid fa-layer-group"></i> Suggested Builds
+              </h3>
+              <div className="build-suggestion-grid">
+                {buildSuggestions.map(build => (
+                  <div key={build.title} className="build-suggestion-card">
+                    <div className="build-suggestion-header">
+                      <h4>{build.title}</h4>
+                      <span>{build.nature}</span>
                     </div>
-                    <div className="move-body-v3">
-                      <div className="move-header-v3">
-                        <span className="move-name-v3">{m.name}</span>
+                    <div className="build-suggestion-meta">
+                      <div>
+                        <span>Ability</span>
+                        <strong>{build.ability}</strong>
                       </div>
-                      <p className="move-desc-v3">{m.desc}</p>
-                      <div className="move-badges-v3">
-                        <span className="move-badge-v3" style={{ background: `${typeColor}15`, color: typeColor }}>
-                          {m.type}
-                        </span>
-                        <span className="move-badge-v3" style={{ background: '#f3f4f6', color: 'var(--text-secondary)' }}>
-                          {m.category}
-                        </span>
+                      <div>
+                        <span>Item</span>
+                        <strong>{build.item}</strong>
+                      </div>
+                      <div>
+                        <span>EVs</span>
+                        <strong>{build.evSpread}</strong>
                       </div>
                     </div>
+                    <details className="build-move-dropdown">
+                      <summary>
+                        <span>Recommended moves</span>
+                        <i className="fa-solid fa-chevron-down"></i>
+                      </summary>
+                      <div className="build-dropdown-move-list">
+                        {build.moves.map(move => {
+                          const typeColor = TYPE_TRANSLATIONS[move.type]?.color || '#999';
+                          return (
+                            <div key={move.name} className="build-dropdown-move">
+                              <div>
+                                <strong>{formatPokemonName(move.name)}</strong>
+                                <p>{move.desc}</p>
+                              </div>
+                              <span style={{ '--move-type-color': typeColor }}>{formatPokemonName(move.type)}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </details>
                   </div>
-                );
-              })}
+                ))}
+              </div>
             </div>
+
+            {relatedPokemon.length > 0 && (
+              <div className="related-pokemon-section">
+                <h3 className="trainer-section-title" style={{ fontSize: '1.15rem', marginBottom: '1rem' }}>
+                  <i className="fa-solid fa-users-viewfinder"></i> Related Pokémon
+                </h3>
+                <div className="related-pokemon-list">
+                  {relatedPokemon.map(candidate => (
+                    <Link key={candidate.id} href={`/pokemon/${candidate.id}`} className="related-pokemon-card">
+                      <img src={candidate.image} alt={candidate.name} />
+                      <div className="related-pokemon-info">
+                        <strong>{formatPokemonName(candidate.name)}</strong>
+                        <span>{candidate.reason}</span>
+                        <div className="related-type-list">
+                          {candidate.types.map(type => {
+                            const trans = TYPE_TRANSLATIONS[type] || { name: type, color: '#999' };
+                            return (
+                              <em key={type} style={{ '--related-type-color': trans.color }}>
+                                {trans.name}
+                              </em>
+                            );
+                          })}
+                        </div>
+                      </div>
+                      <i className="fa-solid fa-chevron-right"></i>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
 
           </div>
 
-          {/* Right Column: Floating Artwork & Synergistic Teammates */}
+          {/* Right Column: Artwork, matchups and evolution */}
           <aside style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
             
             {/* Image Card */}
@@ -290,152 +460,101 @@ export default async function PokemonDetailPage({ params }) {
               />
             </div>
 
-            {/* Evolution Chain */}
-            {evoChain.length > 1 && (
-              <div className="stats-card-v3" style={{ padding: '1.2rem' }}>
-                <h3 className="trainer-section-title" style={{ fontSize: '1.1rem', marginBottom: '1rem' }}>
-                  <i className="fa-solid fa-dna"></i> Evolution Chain
-                </h3>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-                  {evoChain.map((evo, idx) => (
-                    <div key={evo.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                      <Link href={`/pokemon/${evo.id}`} style={{ textDecoration: 'none', color: 'inherit', textAlign: 'center' }}>
-                        <div style={{
-                          width: '60px',
-                          height: '60px',
-                          borderRadius: '50%',
-                          background: 'rgba(0,0,0,0.02)',
-                          border: '1px solid rgba(0,0,0,0.06)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          margin: '0 auto 0.3rem'
-                        }}>
-                          <img src={evo.image} alt={evo.name} style={{ width: '48px', height: '48px', objectFit: 'contain' }} />
-                        </div>
-                        <span style={{ fontSize: '0.65rem', fontWeight: '600', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.1rem' }}>
-                          {idx === 0 ? 'Basic' : idx === 1 ? 'Stage 1' : 'Stage 2'}
-                        </span>
-                        <span style={{ fontSize: '0.75rem', fontWeight: '700', textTransform: 'capitalize', display: 'block' }}>
-                          {evo.name}
-                        </span>
-                      </Link>
-                      {idx < evoChain.length - 1 && (
-                        <i className="fa-solid fa-arrow-right" style={{ color: 'var(--text-secondary)', fontSize: '1rem' }}></i>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* Description Card */}
+            <div className="pokemon-description-card">
+              <p>
+                {description}
+              </p>
+            </div>
 
-            {/* Synergistic Teammates */}
-            <div className="synergy-section-v3" style={{ marginTop: '0.5rem' }}>
-              <h3 className="trainer-section-title" style={{ fontSize: '1.15rem', marginBottom: '1rem' }}>
-                <i className="fa-solid fa-users-viewfinder"></i> Synergistic Teammates
+            {/* Type Matchups */}
+            <div className="stats-card-v3 matchup-panel">
+              <h3 className="trainer-section-title" style={{ fontSize: '1.1rem', marginBottom: '1rem' }}>
+                <i className="fa-solid fa-shield-heart"></i> Type Matchups
               </h3>
-              
-              <div className="synergy-grid-v3" style={{ gridTemplateColumns: '1fr', marginTop: '0.5rem' }}>
-                {mockTeammates.map(t => (
-                  <Link 
-                    key={t.id}
-                    href={`/pokemon/${t.id}`}
-                    className="synergy-card-v3"
-                  >
-                    <img 
-                      src={`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${t.id}.png`} 
-                      alt={t.name} 
-                      className="synergy-img-v3"
-                    />
-                    <div className="synergy-info-v3">
-                      <div className="synergy-name-v3">{t.name}</div>
-                      <span className="synergy-role-v3">{t.role}</span>
+              <div className="matchup-group-list">
+                {[
+                  { key: 'weak', title: 'Weak to', icon: 'fa-triangle-exclamation' },
+                  { key: 'resist', title: 'Resists', icon: 'fa-shield' },
+                  { key: 'immune', title: 'Immune', icon: 'fa-ban' },
+                  { key: 'neutral', title: 'Neutral', icon: 'fa-circle' }
+                ].map(group => (
+                  matchupGroups[group.key].length > 0 && (
+                    <div key={group.key} className={`matchup-group ${group.key}`}>
+                      <div className="matchup-group-title">
+                        <i className={`fa-solid ${group.icon}`}></i>
+                        <span>{group.title}</span>
+                      </div>
+                      <div className="matchup-chip-list">
+                        {matchupGroups[group.key].map(item => {
+                          const trans = TYPE_TRANSLATIONS[item.type] || { name: item.type, color: '#999' };
+                          return (
+                            <div key={item.type} className={`matchup-chip ${group.key}`} style={{ '--matchup-type-color': trans.color }}>
+                              <span>{trans.name}</span>
+                              <strong>{item.multiplier === 0 ? '0x' : `${item.multiplier}x`}</strong>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                    <i className="fa-solid fa-chevron-right" style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}></i>
-                  </Link>
+                  )
                 ))}
               </div>
             </div>
+
+            {/* Evolution Chain */}
+            {baseEvolutionChain.length > 1 && (
+              <div className="stats-card-v3 evolution-panel">
+                <h3 className="trainer-section-title" style={{ fontSize: '1.1rem', marginBottom: '1rem' }}>
+                  <i className="fa-solid fa-dna"></i> Evolution Chain
+                </h3>
+                <div className="evolution-base-row">
+                  {baseEvolutionChain.map((evo, idx) => (
+                    <div key={`${evo.id}-${evo.name}`} className="evolution-node-wrap">
+                      <Link href={`/pokemon/${evo.id}`} className="evolution-node">
+                        <div className="evolution-image-shell">
+                          <img src={evo.image} alt={evo.name} />
+                        </div>
+                        <span className="evolution-stage">{evo.stage}</span>
+                        <span className="evolution-name">{formatPokemonName(evo.name)}</span>
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+                {megaEvolutionBranches.length > 0 && (
+                  <div className="mega-branch-row">
+                    {megaEvolutionBranches.map((mega, idx) => (
+                      <div key={`${mega.id}-${mega.name}`} className="mega-branch-item">
+                        <Link href={`/pokemon/${mega.id}`} className="evolution-node mega">
+                          <div className="evolution-image-shell">
+                            <img className="mega-symbol" src="/mega-symbol.png" alt="" aria-hidden="true" />
+                            <img src={mega.image} alt={mega.name} />
+                          </div>
+                          <span className="evolution-stage">Mega</span>
+                          <span className="evolution-name">{formatPokemonName(mega.name)}</span>
+                        </Link>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
           </aside>
 
         </div>
 
-        {/* 3. Community Builds & Submission Form */}
-        <section className="profile-section" style={{ background: '#ffffff', border: '1px solid var(--border-color)', borderRadius: '20px', padding: '1.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.02)', marginTop: '3rem' }}>
-          <h3 className="trainer-section-title" style={{ fontSize: '1.3rem', marginBottom: '1.5rem' }}>
-            <i className="fa-solid fa-shield-halved"></i> Community Contributions
-          </h3>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            {builds.length > 0 ? (
-              builds.map(build => (
-                <div key={build._id.toString()} className="build-card" style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '16px', padding: '1.2rem' }}>
-                  <div className="build-header">
-                    <div>
-                      <h4 className="build-title" style={{ fontSize: '1.1rem' }}>{build.buildTitle}</h4>
-                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', display: 'block', marginTop: '0.15rem' }}>
-                        Posted: {new Date(build.createdAt).toLocaleDateString('en-US')}
-                      </span>
-                    </div>
-                    <span className="build-author" style={{ fontSize: '0.75rem' }}>Author: {build.trainerName}</span>
-                  </div>
-
-                  <div className="build-meta-grid" style={{ background: '#ffffff', border: '1px solid var(--border-color)' }}>
-                    <div className="build-meta-item">
-                      <span className="build-meta-label">Held Item</span>
-                      <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>{build.item || 'None'}</span>
-                    </div>
-                    <div className="build-meta-item">
-                      <span className="build-meta-label">Nature</span>
-                      <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>{build.nature || 'None'}</span>
-                    </div>
-                  </div>
-
-                  <div className="form-group" style={{ marginBottom: '1rem' }}>
-                    <span className="build-meta-label">Moveset</span>
-                    <div className="build-moves">
-                      {build.moves.map(move => (
-                        <span key={move} className="build-move-badge" style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}>{move}</span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <span className="build-meta-label">Chi tiết & lối chơi</span>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', lineHeight: '1.5' }}>
-                      {build.description}
-                    </p>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div style={{ textAlign: 'center', padding: '2.5rem 1rem', background: '#f8fafc', border: '1px dashed var(--border-color)', borderRadius: '16px' }}>
-                <i className="fa-regular fa-folder-open" style={{ fontSize: '2.2rem', color: 'var(--text-secondary)', marginBottom: '0.8rem', display: 'block' }}></i>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem' }}>No community builds submitted yet.</p>
-              </div>
-            )}
-
-            {/* Build submission container */}
-            {session ? (
-              <SubmitBuildForm pokemonId={pokemonId} trainer={session} />
-            ) : (
-              <div style={{
-                background: 'var(--primary-light)',
-                border: '1px solid rgba(184, 35, 28, 0.15)',
-                borderRadius: '16px',
-                padding: '1.2rem',
-                textAlign: 'center',
-                marginTop: '1rem'
-              }}>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                  Please <Link href="/login" style={{ color: 'var(--primary-color)', fontWeight: 700, textDecoration: 'none' }}>log in</Link> to contribute your competitive build guides.
-                </p>
-              </div>
-            )}
-
+        <footer className="detail-page-footer">
+          <div>
+            <strong>Pokedex Battle Guide</strong>
+            <span>Pokemon data, type matchups, moves and build suggestions are organized for quick team planning.</span>
           </div>
-        </section>
+          <div className="detail-footer-links">
+            <span>Data: PokeAPI</span>
+            <span>Responsive UI</span>
+            <span>Battle-focused details</span>
+          </div>
+        </footer>
 
       </main>
     );
