@@ -576,10 +576,39 @@ const getTeamSuggestionsList = (ownedIds, allPkmn, includeUnowned, format, arche
     const archLabel = arch.charAt(0).toUpperCase() + arch.slice(1);
     const formatLabel = format === 'single' ? 'Singles' : 'Doubles';
 
+    let detailedOperation = `Cách Vận Hành Tổng Quan: Sử dụng các Pokémon Hỗ trợ (Support) để kiểm soát tốc độ trận đấu hoặc tạo hiệu ứng bất lợi cho đối thủ. Đưa các Pokémon Chống chịu (Tank) vào sân để đỡ đòn và kéo giãn đội hình địch, tạo cơ hội cho các Chủ lực (Sweeper) dồn sát thương dứt điểm trận đấu.\n\n• **Vai trò chi tiết & Phối hợp đồng đội**:\n`;
+    detailedPokemons.forEach(p => {
+      const name = formatPokemonName(p.name);
+      let pRoleDesc = "";
+      if (p.roleName.includes('Chủ lực')) {
+        pRoleDesc = `là nguồn sát thương chủ lực (Sweeper) chính, cần được bảo kê để tung các đòn tấn công khắc chế hệ dứt điểm nhanh kẻ địch.`;
+      } else if (p.roleName.includes('Chống chịu')) {
+        pRoleDesc = `đóng vai trò lá chắn thép (Tank) với HP/Thủ cao, chịu trách nhiệm đỡ đòn, câu lượt đấu và cấu rỉa kéo giãn sinh lực địch.`;
+      } else {
+        pRoleDesc = `là Pokémon hỗ trợ (Support) đa năng, sử dụng các đòn tiện ích/kiểm soát tốc độ để giúp đồng đội giành lợi thế đi trước.`;
+      }
+      detailedOperation += `  - **${name}** (*${p.roleName}*): ${pRoleDesc}\n`;
+    });
+
+    detailedOperation += `\n• **Đội hình dẫn đầu & Thiết lập thế trận**:\n`;
+    const leadSupports = detailedPokemons.filter(p => p.roleName.includes('Hỗ trợ')).slice(0, 2);
+    const leadTanks = detailedPokemons.filter(p => p.roleName.includes('Chống chịu')).slice(0, 1);
+    const primarySweeper = detailedPokemons.find(p => p.roleName.includes('Chủ lực'));
+
+    if (leadSupports.length > 0) {
+      detailedOperation += `  - *Dẫn đầu (Leads)*: Thường dẫn đầu trận đấu bằng **${leadSupports.map(p => formatPokemonName(p.name)).join(' hoặc ')}** cùng với **${formatPokemonName(leadTanks[0]?.name || primarySweeper?.name || '')}** để thiết lập khống chế hoặc tăng tốc độ toàn đội ngay lượt đầu.\n`;
+    } else {
+      detailedOperation += `  - *Dẫn đầu (Leads)*: Cử các Pokémon có chỉ số Tốc độ tốt ra sân trước để kiểm soát lượt đi.\n`;
+    }
+
+    if (primarySweeper) {
+      detailedOperation += `  - *Thiết lập dứt điểm (Setup)*: Giữ an toàn cho **${formatPokemonName(primarySweeper.name)}** ở tuyến sau, chờ các hỗ trợ quấy nhiễu thành công rồi tung vào dọn sân đấu.`;
+    }
+
     return {
       teamName: `Your Custom ${archLabel} ${formatLabel} Core`,
       description: `Đội hình chiến thuật ${archLabel} được tối ưu hóa từ bộ sưu tập của bạn, đảm bảo cơ cấu VGC tiêu chuẩn: đầy đủ Chủ lực gây sát thương, Tank chống chịu và Support hỗ trợ hiệu ứng.`,
-      operation: `Sử dụng các Pokémon Hỗ trợ (Support) để kiểm soát tốc độ trận đấu hoặc tạo hiệu ứng bất lợi cho đối thủ. Đưa các Pokémon Chống chịu (Tank) vào sân để đỡ đòn và kéo giãn đội hình địch, tạo cơ hội cho các Chủ lực (Sweeper) dồn sát thương dứt điểm trận đấu.`,
+      operation: detailedOperation,
       source: 'Collection Balance Intelligence',
       pokemons: detailedPokemons,
       unownedCount: 0,
@@ -609,11 +638,48 @@ const getTeamSuggestionsList = (ownedIds, allPkmn, includeUnowned, format, arche
     return teamsList.slice(0, 3);
   }
 
+  // Classify owned Pokémon for role matching
+  const ownedPkmn = allPkmn.filter(p => ownedIds.includes(p.id));
+  const classifiedOwned = ownedPkmn.map(p => {
+    const atk = getStat(p, 'attack');
+    const spa = getStat(p, 'special-attack');
+    const spe = getStat(p, 'speed');
+    const hp = getStat(p, 'hp');
+    const def = getStat(p, 'defense');
+    const spdef = getStat(p, 'special-defense');
+
+    let sweeperScore = Math.max(atk, spa) * 1.5 + spe;
+    let tankScore = hp * 1.2 + def + spdef;
+    let supportScore = spe * 1.3 + hp + spdef;
+
+    let role = 'Sweeper';
+    let bestScore = sweeperScore;
+    if (tankScore > bestScore) {
+      role = 'Tank';
+      bestScore = tankScore;
+    }
+    if (supportScore > bestScore && supportScore > tankScore) {
+      role = 'Support';
+      bestScore = supportScore;
+    }
+
+    return { p, role };
+  });
+
+  const getGeneralRole = (roleStr) => {
+    const r = roleStr.toLowerCase();
+    if (r.includes('sweeper') || r.includes('attacker') || r.includes('strike') || r.includes('hitter') || r.includes('restricted')) return 'Sweeper';
+    if (r.includes('support') || r.includes('setter') || r.includes('denial') || r.includes('control') || r.includes('redirector') || r.includes('helper') || r.includes('prankster')) return 'Support';
+    if (r.includes('tank') || r.includes('pivot') || r.includes('defense') || r.includes('bulky') || r.includes('assault') || r.includes('stamina')) return 'Tank';
+    return 'Sweeper';
+  };
+
   // Suggesting from Predefined META Teams (includeUnowned is true)
   const candidates = metaTeams.filter(t => t.format === format);
 
   const scoredTeams = candidates.map(team => {
-    const detailedPokemons = team.pokemons.map(tp => {
+    // 1. Initial mapping of meta template
+    let detailedPokemons = team.pokemons.map(tp => {
       const found = allPkmn.find(p => p.id === tp.id);
       const isOwned = ownedIds.includes(tp.id);
       if (found) {
@@ -637,12 +703,60 @@ const getTeamSuggestionsList = (ownedIds, allPkmn, includeUnowned, format, arche
       }
     });
 
-    const unownedCount = detailedPokemons.filter(p => !p.isOwned).length;
+    let unownedCount = detailedPokemons.filter(p => !p.isOwned).length;
+
+    // 2. Adaptation Engine: If unownedCount is > 3 (meaning we own < 3 Pokémon),
+    // we substitute unowned slots with owned Pokémon matching the general VGC role category
+    // to bring the unowned count strictly to 3 or less (meaning owned count >= 3).
+    if (unownedCount > 3 && ownedIds.length >= 3) {
+      const currentTeamIds = new Set(detailedPokemons.map(p => p.id));
+      
+      // Loop through and swap unowned slots with matching owned Pokémon
+      for (let i = 0; i < detailedPokemons.length; i++) {
+        if (unownedCount <= 3) break; // target met!
+        
+        const slot = detailedPokemons[i];
+        if (!slot.isOwned) {
+          const slotRole = getGeneralRole(slot.roleName);
+          // Find an owned Pokémon of the same general VGC role that is not already in the team
+          const replacement = classifiedOwned.find(co => co.role === slotRole && !currentTeamIds.has(co.p.id));
+          
+          if (replacement) {
+            detailedPokemons[i] = {
+              ...replacement.p,
+              roleName: slot.roleName, // keep the meta role text
+              roleIcon: slot.roleIcon, // keep the meta role icon
+              isOwned: true
+            };
+            currentTeamIds.add(replacement.p.id);
+            unownedCount--;
+          }
+        }
+      }
+    }
+
+    // 3. Generate structured operational guide for each team dynamically to be extremely detailed
+    // listing what each support does, who leads, and setup instructions
+    let operation = team.operation;
+    if (team.operation) {
+      const supportList = detailedPokemons.filter(p => p.roleName.toLowerCase().includes('support') || p.roleName.toLowerCase().includes('redirect') || p.roleName.toLowerCase().includes('setter') || p.roleName.toLowerCase().includes('prankster') || p.roleName.toLowerCase().includes('helper'));
+      const sweeperList = detailedPokemons.filter(p => p.roleName.toLowerCase().includes('sweeper') || p.roleName.toLowerCase().includes('attacker') || p.roleName.toLowerCase().includes('restricted') || p.roleName.toLowerCase().includes('hitter'));
+      const tankList = detailedPokemons.filter(p => p.roleName.toLowerCase().includes('tank') || p.roleName.toLowerCase().includes('pivot') || p.roleName.toLowerCase().includes('bulky') || p.roleName.toLowerCase().includes('stamina') || p.roleName.toLowerCase().includes('defense'));
+
+      let supportDetails = supportList.map(p => `**${formatPokemonName(p.name)}** (*${p.roleName}*)`).join(', ');
+      let sweeperDetails = sweeperList.map(p => `**${formatPokemonName(p.name)}** (*${p.roleName}*)`).join(', ');
+      let tankDetails = tankList.map(p => `**${formatPokemonName(p.name)}** (*${p.roleName}*)`).join(', ');
+
+      operation = `${team.operation}\n\n• **Vai trò chi tiết & Phối hợp đồng đội**:\n` +
+        `  - *Hỗ trợ (Support)*: ${supportDetails || "Hỗ trợ tốc độ/hiệu ứng sân bãi"}. Các hỗ trợ này chịu trách nhiệm kiểm soát lượt đi, vô hiệu hóa chủ lực địch hoặc thu hút đòn đánh bảo vệ đồng đội.\n` +
+        `  - *Chống chịu (Tank)*: ${tankDetails || "Đỡ đòn và tạo thế trận"}. Đóng vai trò chịu sát thương, làm tường trung chuyển để xoay tua đội hình.\n` +
+        `  - *Chủ lực (Sweeper)*: ${sweeperDetails || "Gây sát thương dứt điểm"}. Các mũi nhọn gánh sát thương chính của đội để quét sạch đối thủ khi thời cơ đến.`;
+    }
 
     return {
       teamName: team.name,
       description: team.description,
-      operation: team.operation,
+      operation: operation,
       source: team.source,
       pokemons: detailedPokemons,
       unownedCount,
@@ -650,8 +764,10 @@ const getTeamSuggestionsList = (ownedIds, allPkmn, includeUnowned, format, arche
     };
   });
 
-  // Only include teams where the trainer owns at least 3 Pokémon (unownedCount <= 3)
-  const validTeams = scoredTeams.filter(t => t.unownedCount <= 3);
+  // Filter out any teams that could not be adapted to have at least 3 owned Pokémon (unownedCount <= 3)
+  const targetUnownedLimit = ownedIds.length >= 3 ? 3 : 6 - ownedIds.length;
+  
+  const validTeams = scoredTeams.filter(t => t.unownedCount <= targetUnownedLimit);
   validTeams.sort((a, b) => a.unownedCount - b.unownedCount);
 
   // Boost teams matching selected archetype
@@ -664,9 +780,9 @@ const getTeamSuggestionsList = (ownedIds, allPkmn, includeUnowned, format, arche
 
   let finalTeams = [...validTeams];
 
-  // If we have fewer than 3 teams, append restTeams (which have >3 unowned) sorted by owned count
+  // Fallback to guarantee 3 suggestions if valid list is short
   if (finalTeams.length < 3) {
-    const restTeams = scoredTeams.filter(t => t.unownedCount > 3);
+    const restTeams = scoredTeams.filter(t => t.unownedCount > targetUnownedLimit);
     restTeams.sort((a, b) => a.unownedCount - b.unownedCount);
     finalTeams = [...finalTeams, ...restTeams];
   }
@@ -4374,7 +4490,7 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
                       <div style={{ fontSize: '0.85rem', color: '#334155', lineHeight: '1.65', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                         <div>
                           <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '0.2rem' }}>Cách Vận Hành Tổng Quan:</strong>
-                          <p style={{ margin: 0 }}>{suggestionResult.operation}</p>
+                          <p style={{ margin: 0, whiteSpace: 'pre-line' }}>{suggestionResult.operation}</p>
                         </div>
 
                         <div style={{ borderTop: '1px dashed #cbd5e1', paddingTop: '1rem' }}>
