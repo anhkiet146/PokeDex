@@ -1451,22 +1451,69 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
   const router = useRouter();
   const isAdmin = trainer.username === 'admin' || trainer.role === 'admin';
 
-  // Load saved custom teams from local storage on mount
+  // Load saved custom teams from local storage on mount and sanitize them against owned collection
   useEffect(() => {
     const trainerId = trainer.id || trainer._id;
     if (typeof window !== 'undefined' && trainerId) {
+      let loadedTeams = null;
       const saved = localStorage.getItem(`trainer_teams_${trainerId}`);
       if (saved) {
         try {
-          setTeams(JSON.parse(saved));
+          loadedTeams = JSON.parse(saved);
         } catch (e) {
           console.error("Failed to parse trainer teams", e);
         }
-      } else if (trainer.teams) {
-        setTeams(trainer.teams);
+      }
+      
+      if (!loadedTeams && trainer.teams) {
+        loadedTeams = [...trainer.teams];
+      }
+
+      if (loadedTeams) {
+        let changed = false;
+        const ownedSet = new Set((trainer.ownedPokemon || []).map(id => Number(id)));
+        const cleanedTeams = loadedTeams.map(team => {
+          return team.map(slotId => {
+            if (slotId !== null && !ownedSet.has(Number(slotId))) {
+              changed = true;
+              return null;
+            }
+            return slotId;
+          });
+        });
+
+        if (changed) {
+          const savedBuilds = localStorage.getItem(`trainer_builds_${trainerId}`);
+          if (savedBuilds) {
+            try {
+              const parsed = JSON.parse(savedBuilds);
+              let buildsChanged = false;
+              loadedTeams.forEach((team, tIdx) => {
+                team.forEach((slotId, sIdx) => {
+                  if (slotId !== null && !ownedSet.has(Number(slotId))) {
+                    const key = `${tIdx}_${sIdx}`;
+                    if (parsed[key]) {
+                      delete parsed[key];
+                      buildsChanged = true;
+                    }
+                  }
+                });
+              });
+              if (buildsChanged) {
+                localStorage.setItem(`trainer_builds_${trainerId}`, JSON.stringify(parsed));
+                setBuilds(parsed);
+              }
+            } catch (err) {
+              console.error(err);
+            }
+          }
+          handleSaveTeams(cleanedTeams);
+        } else {
+          setTeams(loadedTeams);
+        }
       }
     }
-  }, [trainer.id || trainer._id]);
+  }, [trainer.id || trainer._id, trainer.ownedPokemon]);
 
   // Load saved custom builds from local storage on mount
   useEffect(() => {
