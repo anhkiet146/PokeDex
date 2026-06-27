@@ -1,4 +1,4 @@
-import { getReputableBuildSuggestions } from './competitive-sets';
+import { getReputableBuildSuggestions, METAGAME_BUILDS } from './competitive-sets';
 
 export const MOVE_VERSION_GROUP_PRIORITY = [
   'scarlet-violet',
@@ -323,38 +323,64 @@ export function selectRecommendedMoves(pokemon, moveDetails, role = getBattleRol
 }
 
 export function createBuildSuggestions(pokemon, moveDetails, abilities = []) {
-  const rawSuggestions = getReputableBuildSuggestions(pokemon);
-  
-  return rawSuggestions.map(s => {
-    // Resolve moves names to full PokeAPI move details objects (matching name or slug format)
-    const resolvedMoves = s.moves.map(moveName => {
-      const match = moveDetails.find(md => {
-        const mdNameLower = md.name.toLowerCase().trim();
-        const inputLower = moveName.toLowerCase().trim();
-        return mdNameLower === inputLower || mdNameLower.replaceAll('-', ' ') === inputLower || mdNameLower.replaceAll(' ', '-') === inputLower;
+  const name = pokemon.name.toLowerCase().trim();
+  const baseName = name.split('-')[0];
+  const hasMetaBuild = METAGAME_BUILDS[name] || METAGAME_BUILDS[baseName];
+
+  if (hasMetaBuild) {
+    const rawSuggestions = getReputableBuildSuggestions(pokemon);
+    return rawSuggestions.map(s => {
+      // Resolve moves names to full PokeAPI move details objects (matching name or slug format)
+      const resolvedMoves = s.moves.map(moveName => {
+        const match = moveDetails.find(md => {
+          const mdNameLower = md.name.toLowerCase().trim();
+          const inputLower = moveName.toLowerCase().trim();
+          return mdNameLower === inputLower || mdNameLower.replaceAll('-', ' ') === inputLower || mdNameLower.replaceAll(' ', '-') === inputLower;
+        });
+
+        if (match) {
+          return {
+            name: match.name,
+            type: match.type,
+            desc: match.desc
+          };
+        }
+
+        // Fallback object structure if not in PokeAPI learnset cache
+        return {
+          name: moveName,
+          type: 'normal',
+          desc: 'Chiêu thức chiến thuật đặc trưng.'
+        };
       });
 
-      if (match) {
-        return {
-          name: match.name,
-          type: match.type,
-          desc: match.desc
-        };
-      }
-
-      // Fallback object structure if not in PokeAPI learnset cache
       return {
-        name: moveName,
-        type: 'normal',
-        desc: 'Chiêu thức chiến thuật đặc trưng.'
+        ...s,
+        moves: resolvedMoves
       };
     });
+  }
 
-    return {
-      ...s,
-      moves: resolvedMoves
-    };
-  });
+  // Fallback: Dynamically generate a set using its actual properties so it is 100% synchronized with Battle Data!
+  const primaryAbility = abilities[0]?.name || pokemon.abilities?.[0] || 'unknown';
+  const suggestedItem = getSuggestedItem(pokemon);
+  const suggestedNature = getSuggestedNature(pokemon);
+  const suggestedEvs = getSuggestedEvSpread(pokemon);
+  const role = getBattleRole(pokemon);
+  
+  const recommendedMoves = selectRecommendedMoves(pokemon, moveDetails, role);
+
+  return [
+    {
+      title: `Standard VGC ${role}`,
+      ability: formatPokemonName(primaryAbility),
+      item: suggestedItem,
+      nature: suggestedNature,
+      evSpread: suggestedEvs,
+      moves: recommendedMoves,
+      note: `Hướng đề xuất cân bằng theo chỉ số cơ bản của Pokémon hệ ${pokemon.types?.map(t => formatPokemonName(t)).join('/') || 'Thường'}.`
+    }
+  ];
 }
 
 function dedupeMoves(moves) {

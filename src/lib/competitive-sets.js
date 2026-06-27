@@ -1,4 +1,37 @@
 export const METAGAME_BUILDS = {
+  'charizard-mega-y': [
+    {
+      title: 'VGC Drought Special Attacker',
+      ability: 'Drought',
+      item: 'Charizardite Y',
+      nature: 'Timid',
+      evSpread: '252 SpA / 4 SpD / 252 Spe',
+      moves: ['Heat Wave', 'Overheat', 'Solar Beam', 'Protect'],
+      note: 'Kích hoạt thời tiết Nắng Drought khi ra sân, giúp tăng 50% sát thương đòn Lửa và đi chiêu Solar Beam không cần tích tụ.'
+    }
+  ],
+  'charizard-mega-x': [
+    {
+      title: 'VGC Tough Claws Physical Sweeper',
+      ability: 'Tough Claws',
+      item: 'Charizardite X',
+      nature: 'Jolly',
+      evSpread: '252 Atk / 4 SpD / 252 Spe',
+      moves: ['Dragon Claw', 'Flare Blitz', 'Dragon Dance', 'Protect'],
+      note: 'Tận dụng thuộc tính hệ Lửa/Rồng mới và nội tại Tough Claws giúp tăng 30% sát thương đòn tiếp xúc vật lý.'
+    }
+  ],
+  'charizard': [
+    {
+      title: 'VGC Solar Power Attacker',
+      ability: 'Solar Power',
+      item: 'Life Orb',
+      nature: 'Timid',
+      evSpread: '4 HP / 252 SpA / 252 Spe',
+      moves: ['Heat Wave', 'Overheat', 'Air Slash', 'Protect'],
+      note: 'Sử dụng dưới trời nắng cùng đồng đội Drought/Drizzle để kích hoạt Solar Power tăng 50% Sp. Atk.'
+    }
+  ],
   'miraidon': [
     {
       title: 'VGC Choice Specs Sweeper',
