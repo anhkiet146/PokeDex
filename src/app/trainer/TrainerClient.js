@@ -2218,6 +2218,48 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
       }
 
       setTrainer(data.trainer);
+
+      // If a Pokemon was removed, automatically remove it from any active team slots & delete their custom builds
+      if (action === 'remove') {
+        let teamChanged = false;
+        const newTeams = teams.map((team) => {
+          return team.map((slotId) => {
+            if (slotId === pokemonId) {
+              teamChanged = true;
+              return null;
+            }
+            return slotId;
+          });
+        });
+
+        if (teamChanged) {
+          const trainerId = data.trainer.id || data.trainer._id;
+          const updatedBuilds = { ...builds };
+          let buildsChanged = false;
+
+          teams.forEach((team, tIdx) => {
+            team.forEach((slotId, sIdx) => {
+              if (slotId === pokemonId) {
+                const key = `${tIdx}_${sIdx}`;
+                if (updatedBuilds[key]) {
+                  delete updatedBuilds[key];
+                  buildsChanged = true;
+                }
+              }
+            });
+          });
+
+          if (buildsChanged) {
+            setBuilds(updatedBuilds);
+            if (typeof window !== 'undefined' && trainerId) {
+              localStorage.setItem(`trainer_builds_${trainerId}`, JSON.stringify(updatedBuilds));
+            }
+          }
+
+          // Persist the updated team configurations
+          await handleSaveTeams(newTeams);
+        }
+      }
     } catch (err) {
       alert(err.message);
     }
