@@ -735,28 +735,10 @@ const getTeamSuggestionsList = (ownedIds, allPkmn, includeUnowned, format, arche
       }
     }
 
-    // 3. Generate structured operational guide for each team dynamically to be extremely detailed
-    // listing what each support does, who leads, and setup instructions
-    let operation = team.operation;
-    if (team.operation) {
-      const supportList = detailedPokemons.filter(p => p.roleName.toLowerCase().includes('support') || p.roleName.toLowerCase().includes('redirect') || p.roleName.toLowerCase().includes('setter') || p.roleName.toLowerCase().includes('prankster') || p.roleName.toLowerCase().includes('helper'));
-      const sweeperList = detailedPokemons.filter(p => p.roleName.toLowerCase().includes('sweeper') || p.roleName.toLowerCase().includes('attacker') || p.roleName.toLowerCase().includes('restricted') || p.roleName.toLowerCase().includes('hitter'));
-      const tankList = detailedPokemons.filter(p => p.roleName.toLowerCase().includes('tank') || p.roleName.toLowerCase().includes('pivot') || p.roleName.toLowerCase().includes('bulky') || p.roleName.toLowerCase().includes('stamina') || p.roleName.toLowerCase().includes('defense'));
-
-      let supportDetails = supportList.map(p => `**${formatPokemonName(p.name)}** (*${p.roleName}*)`).join(', ');
-      let sweeperDetails = sweeperList.map(p => `**${formatPokemonName(p.name)}** (*${p.roleName}*)`).join(', ');
-      let tankDetails = tankList.map(p => `**${formatPokemonName(p.name)}** (*${p.roleName}*)`).join(', ');
-
-      operation = `${team.operation}\n\n• **Vai trò chi tiết & Phối hợp đồng đội**:\n` +
-        `  - *Hỗ trợ (Support)*: ${supportDetails || "Hỗ trợ tốc độ/hiệu ứng sân bãi"}. Các hỗ trợ này chịu trách nhiệm kiểm soát lượt đi, vô hiệu hóa chủ lực địch hoặc thu hút đòn đánh bảo vệ đồng đội.\n` +
-        `  - *Chống chịu (Tank)*: ${tankDetails || "Đỡ đòn và tạo thế trận"}. Đóng vai trò chịu sát thương, làm tường trung chuyển để xoay tua đội hình.\n` +
-        `  - *Chủ lực (Sweeper)*: ${sweeperDetails || "Gây sát thương dứt điểm"}. Các mũi nhọn gánh sát thương chính của đội để quét sạch đối thủ khi thời cơ đến.`;
-    }
-
     return {
       teamName: team.name,
       description: team.description,
-      operation: operation,
+      operation: team.operation,
       source: team.source,
       pokemons: detailedPokemons,
       unownedCount,
