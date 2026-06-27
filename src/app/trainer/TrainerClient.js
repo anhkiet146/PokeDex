@@ -9,7 +9,8 @@ import {
   getSuggestedItem,
   getSuggestedEvSpread,
   formatPokemonName,
-  getMegaHeldItem
+  getMegaHeldItem,
+  getSuggestedItemsList
 } from '@/lib/competitive';
 import { getItemDesc, getMoveDesc } from '@/lib/competitive-descriptions';
 
@@ -1327,6 +1328,67 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
   const [trainer, setTrainer] = useState(initialTrainer);
   const [activeTab, setActiveTab] = useState('profile'); // profile | collection | simulator | matchups | settings | admin
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+
+  const enforceUniqueTeamItems = (teamIdx, currentBuilds, currentTeam) => {
+    const updatedBuilds = { ...currentBuilds };
+    const usedItems = new Set();
+
+    const activeSlots = [];
+    currentTeam.forEach((pokemonId, slotIdx) => {
+      if (pokemonId) {
+        const p = allPokemon.find(item => item.id === pokemonId);
+        if (p) {
+          activeSlots.push({ slotIdx, pokemon: p });
+        }
+      }
+    });
+
+    activeSlots.forEach(({ slotIdx, pokemon }) => {
+      const key = `${teamIdx}_${slotIdx}`;
+      const build = updatedBuilds[key];
+      if (build) {
+        let currentItem = build.heldItem || 'None';
+        if (currentItem === 'None' || usedItems.has(currentItem)) {
+          const preferences = getSuggestedItemsList ? getSuggestedItemsList(pokemon) : [getSuggestedItem(pokemon)];
+          let assigned = false;
+
+          for (const pref of preferences) {
+            if (pref && pref !== 'None' && !usedItems.has(pref)) {
+              build.heldItem = pref;
+              usedItems.add(pref);
+              assigned = true;
+              break;
+            }
+          }
+
+          if (!assigned) {
+            const commonFallbacks = [
+              'Safety Goggles', 'Focus Sash', 'Assault Vest', 'Choice Specs', 
+              'Life Orb', 'Choice Band', 'Choice Scarf', 'Rocky Helmet', 
+              'Sitrus Berry', 'Leftovers', 'Clear Amulet', 'Covert Cloak',
+              'Booster Energy', 'Eviolite', 'Mental Herb'
+            ];
+            for (const fallback of commonFallbacks) {
+              if (!usedItems.has(fallback)) {
+                build.heldItem = fallback;
+                usedItems.add(fallback);
+                assigned = true;
+                break;
+              }
+            }
+          }
+
+          if (!assigned) {
+            build.heldItem = 'None';
+          }
+        } else {
+          usedItems.add(currentItem);
+        }
+      }
+    });
+
+    return updatedBuilds;
+  };
   
   // Profile edit settings
   const [displayName, setDisplayName] = useState(trainer.displayName);
@@ -1589,7 +1651,11 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
         evs: getSuggestedEvSpread && parseEvSpreadString ? parseEvSpreadString(getSuggestedEvSpread(p)) : { hp: 0, attack: 0, defense: 0, 'special-attack': 0, 'special-defense': 0, speed: 0 },
         moves: ['', '', '', '']
       };
-      const updatedBuilds = { ...builds, [key]: defaultBuild };
+      let updatedBuilds = { ...builds, [key]: defaultBuild };
+      
+      // Enforce unique items across the active team
+      updatedBuilds = enforceUniqueTeamItems(activeTeamIdx, updatedBuilds, newTeams[activeTeamIdx]);
+      
       setBuilds(updatedBuilds);
       if (typeof window !== 'undefined' && trainerId) {
         localStorage.setItem(`trainer_builds_${trainerId}`, JSON.stringify(updatedBuilds));
@@ -1657,7 +1723,7 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
 
     // Initialize default builds for these slots
     const trainerId = currentTrainer.id || currentTrainer._id;
-    const updatedBuilds = { ...builds };
+    let updatedBuilds = { ...builds };
     suggestedIds.forEach((id, idx) => {
       if (idx >= 6) return;
       const key = `${activeTeamIdx}_${idx}`;
@@ -1674,6 +1740,9 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
         }
       }
     });
+
+    // Enforce unique items across the active team
+    updatedBuilds = enforceUniqueTeamItems(activeTeamIdx, updatedBuilds, newTeams[activeTeamIdx]);
 
     setBuilds(updatedBuilds);
     if (typeof window !== 'undefined' && trainerId) {
@@ -3248,14 +3317,38 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
                           <h4>
                             <i className="fa-solid fa-triangle-exclamation"></i> Weaknesses & Risks
                           </h4>
-                          {activeTeamSynergy.cons.length > 0 || activeTeamSynergy.warnings.length > 0 ? (
-                            <ul>
-                              {activeTeamSynergy.cons.map((c, i) => <li key={i}>{c}</li>)}
-                              {activeTeamSynergy.warnings.map((w, i) => <li key={i} style={{ color: '#be185d', fontWeight: 600 }}>{w.message}</li>)}
-                            </ul>
-                          ) : (
-                            <p style={{ fontSize: '0.75rem', color: '#92400e' }}>No structural flaws detected in core types.</p>
-                          )}
+                          {(() => {
+                            const itemCounts = {};
+                            teams[activeTeamIdx].forEach((pokemonId, slotIdx) => {
+                              if (pokemonId) {
+                                const buildKey = `${activeTeamIdx}_${slotIdx}`;
+                                const build = builds[buildKey];
+                                if (build && build.heldItem && build.heldItem !== 'None') {
+                                  const item = build.heldItem;
+                                  itemCounts[item] = (itemCounts[item] || 0) + 1;
+                                }
+                              }
+                            });
+                            const duplicateItems = Object.keys(itemCounts).filter(item => itemCounts[item] > 1);
+                            const hasConsOrWarnings = activeTeamSynergy.cons.length > 0 || activeTeamSynergy.warnings.length > 0 || duplicateItems.length > 0;
+                            
+                            if (!hasConsOrWarnings) {
+                              return <p style={{ fontSize: '0.75rem', color: '#92400e' }}>No structural flaws detected in core types.</p>;
+                            }
+
+                            return (
+                              <ul>
+                                {duplicateItems.map((item, idx) => (
+                                  <li key={`dup-${idx}`} style={{ color: '#be185d', fontWeight: 700, listStyleType: 'square' }}>
+                                    <i className="fa-solid fa-ban" style={{ marginRight: '0.2rem' }}></i>
+                                    Item Clause Violation: Đội hình sử dụng nhiều vật phẩm "{item}". Mỗi Pokémon bắt buộc phải mang một Held Item khác nhau theo luật thi đấu VGC!
+                                  </li>
+                                ))}
+                                {activeTeamSynergy.cons.map((c, i) => <li key={`con-${i}`}>{c}</li>)}
+                                {activeTeamSynergy.warnings.map((w, i) => <li key={`warn-${i}`} style={{ color: '#be185d', fontWeight: 600 }}>{w.message}</li>)}
+                              </ul>
+                            );
+                          })()}
                         </div>
  
                         <div className="synergy-feedback-card warnings">

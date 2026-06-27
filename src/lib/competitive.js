@@ -390,3 +390,61 @@ function dedupeMoves(moves) {
     return true;
   });
 }
+
+export function getSuggestedItemsList(pokemon) {
+  const name = pokemon.name.toLowerCase();
+  const megaStone = getMegaHeldItem(pokemon.name);
+  if (megaStone) return [megaStone];
+
+  if (name.includes('miraidon')) return ['Choice Specs', 'Life Orb', 'Choice Scarf'];
+  if (name.includes('koraidon')) return ['Choice Band', 'Clear Amulet', 'Life Orb'];
+  if (name.includes('flutter-mane')) return ['Booster Energy', 'Focus Sash', 'Choice Specs'];
+  if (name.includes('urshifu-rapid-strike') || name.includes('urshifu-water')) return ['Focus Sash', 'Choice Band', 'Mystic Water'];
+  if (name.includes('urshifu-single-strike') || name.includes('urshifu-dark') || name.includes('urshifu')) return ['Focus Sash', 'Choice Band', 'Black Glasses'];
+  if (name.includes('chien-pao')) return ['Focus Sash', 'Life Orb', 'Choice Band'];
+  if (name.includes('chi-yu')) return ['Choice Specs', 'Focus Sash', 'Life Orb'];
+  if (name.includes('ting-lu')) return ['Assault Vest', 'Leftovers', 'Sitrus Berry'];
+  if (name.includes('amoonguss')) return ['Rocky Helmet', 'Mental Herb', 'Safety Goggles'];
+  if (name.includes('incineroar')) return ['Safety Goggles', 'Sitrus Berry', 'Shuca Berry'];
+  if (name.includes('rillaboom')) return ['Assault Vest', 'Miracle Seed', 'Choice Band'];
+  if (name.includes('farigiraf')) return ['Mental Herb', 'Safety Goggles', 'Throat Spray'];
+  if (name.includes('whimsicott')) return ['Focus Sash', 'Covert Cloak', 'Mental Herb'];
+  if (name.includes('tornadus')) return ['Focus Sash', 'Mental Herb', 'Covert Cloak'];
+  if (name.includes('raging-bolt')) return ['Assault Vest', 'Leftovers', 'Life Orb'];
+  if (name.includes('iron-hands')) return ['Assault Vest', 'Clear Amulet', 'Sitrus Berry'];
+  if (name.includes('iron-bundle')) return ['Focus Sash', 'Booster Energy', 'Life Orb'];
+  if (name.includes('iron-valiant')) return ['Booster Energy', 'Focus Sash', 'Life Orb'];
+  if (name.includes('iron-crown')) return ['Assault Vest', 'Booster Energy', 'Life Orb'];
+  if (name.includes('gholdengo')) return ['Choice Specs', 'Life Orb', 'Covert Cloak'];
+  if (name.includes('archaludon')) return ['Assault Vest', 'Power Herb', 'Leftovers'];
+  if (name.includes('ursaluna-bloodmoon')) return ['Life Orb', 'Assault Vest', 'Throat Spray'];
+  if (name.includes('ursaluna')) return ['Flame Orb', 'Leftovers', 'Assault Vest'];
+  if (name.includes('torkoal')) return ['Charcoal', 'Choice Specs', 'Sitrus Berry'];
+  if (name.includes('gallade')) return ['Focus Sash', 'Life Orb', 'Clear Amulet'];
+  if (name.includes('kingambit')) return ['Black Glasses', 'Assault Vest', 'Safety Goggles'];
+  if (name.includes('maushold')) return ['Wide Lens', 'Focus Sash', 'Safety Goggles'];
+  if (name.includes('annihilape')) return ['Leftovers', 'Focus Sash', 'Choice Scarf'];
+  if (name.includes('clefairy') || name.includes('porygon2') || name.includes('dusclops') || name.includes('duraludon')) return ['Eviolite'];
+  if (name.includes('dragonite')) return ['Choice Band', 'Lum Berry', 'Assault Vest'];
+  if (name.includes('garchomp')) return ['Clear Amulet', 'Life Orb', 'Focus Sash'];
+  if (name.includes('landorus-therian')) return ['Choice Scarf', 'Assault Vest', 'Life Orb'];
+  if (name.includes('landorus-incarnate')) return ['Life Orb', 'Focus Sash'];
+  if (name.includes('thundurus')) return ['Mental Herb', 'Focus Sash', 'Safety Goggles'];
+  if (name.includes('heatran')) return ['Leftovers', 'Assault Vest', 'Shuca Berry'];
+  if (name.includes('cresselia')) return ['Mental Herb', 'Leftovers', 'Rocky Helmet'];
+  if (name.includes('ogerpon')) {
+    if (name.includes('hearthflame')) return ['Hearthflame Mask'];
+    if (name.includes('wellspring')) return ['Wellspring Mask'];
+    if (name.includes('cornerstone')) return ['Cornerstone Mask'];
+    return ['Focus Sash', 'Miracle Seed', 'Clear Amulet'];
+  }
+
+  // Fallback lists based on role
+  const role = getBattleRole(pokemon);
+  if (role.includes('Bulky')) return ['Leftovers', 'Sitrus Berry', 'Rocky Helmet', 'Assault Vest'];
+  if (role.includes('Fast Special')) return ['Focus Sash', 'Booster Energy', 'Choice Specs', 'Life Orb'];
+  if (role.includes('Fast Physical')) return ['Focus Sash', 'Booster Energy', 'Choice Band', 'Life Orb'];
+  if (role.includes('Special')) return ['Choice Specs', 'Life Orb', 'Assault Vest', 'Focus Sash'];
+  if (role.includes('Mixed')) return ['Life Orb', 'Expert Belt', 'Assault Vest'];
+  return ['Choice Band', 'Life Orb', 'Focus Sash', 'Clear Amulet'];
+}
