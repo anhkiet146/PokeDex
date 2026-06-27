@@ -11,6 +11,7 @@ import {
   getSuggestedNature,
   normalizeAbilities,
 } from '@/lib/competitive';
+import { getItemDesc } from '@/lib/competitive-descriptions';
 
 const TYPE_TRANSLATIONS = {
   normal: { name: 'Normal', color: '#A8A77A' },
@@ -411,12 +412,11 @@ export default async function PokemonDetailPage({ params }) {
                       </div>
                     ))}
                   </div>
-                </div>
-                <div className="build-feature-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: 0 }}>
+                </div>                 <div className="build-feature-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: 0 }}>
                   <i className="fa-solid fa-bag-shopping build-feature-icon" style={{ color: '#ec4899' }}></i>
                   <span className="build-feature-label">Suggested Held Item</span>
                   <span className="build-feature-value" style={{ marginBottom: '0.4rem' }}>{heldItem}</span>
-                  <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap', marginBottom: '0.2rem' }}>
                     {heldItem.split('/').map(item => {
                       const trimmed = item.trim();
                       const imgUrl = getItemImageUrl(trimmed);
@@ -432,6 +432,11 @@ export default async function PokemonDetailPage({ params }) {
                       );
                     })}
                   </div>
+                  {heldItem && heldItem !== 'None' && (
+                    <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', textAlign: 'center', marginTop: '0.2rem', fontStyle: 'italic', lineHeight: '1.3' }}>
+                      {heldItem.split('/').map(item => getItemDesc(item.trim())).join(' / ')}
+                    </p>
+                  )}
                 </div>
                 <div className="build-feature-card">
                   <i className="fa-solid fa-compass build-feature-icon" style={{ color: '#06b6d4' }}></i>
@@ -462,8 +467,7 @@ export default async function PokemonDetailPage({ params }) {
                       <div>
                         <span>Ability</span>
                         <strong>{build.ability}</strong>
-                      </div>
-                      <div>
+                      </div>                       <div>
                         <span>Item</span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexWrap: 'wrap' }}>
                           <strong style={{ fontSize: '0.85rem' }}>{build.item}</strong>
@@ -484,6 +488,11 @@ export default async function PokemonDetailPage({ params }) {
                             })}
                           </div>
                         </div>
+                        {build.item && build.item !== 'None' && (
+                          <span style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.68rem', fontStyle: 'italic', marginTop: '0.1rem', lineHeight: '1.25' }}>
+                            {build.item.split('/').map(item => getItemDesc(item.trim())).join(' / ')}
+                          </span>
+                        )}
                       </div>
                       <div>
                         <span>EVs</span>

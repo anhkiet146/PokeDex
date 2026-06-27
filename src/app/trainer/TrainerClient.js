@@ -11,6 +11,7 @@ import {
   formatPokemonName,
   getMegaHeldItem
 } from '@/lib/competitive';
+import { getItemDesc, getMoveDesc } from '@/lib/competitive-descriptions';
 
 const TYPE_TRANSLATIONS = {
   normal: { name: 'Normal', color: '#A8A77A' },
@@ -2746,6 +2747,12 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
                                   })()}
                                 </select>
                               </div>
+                              {localBuild.heldItem && localBuild.heldItem !== 'None' && (
+                                <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.35rem', fontStyle: 'italic', lineHeight: '1.3' }}>
+                                  <i className="fa-solid fa-circle-question" style={{ marginRight: '0.2rem', color: '#6390f0' }}></i>
+                                  {getItemDesc(localBuild.heldItem)}
+                                </p>
+                              )}
                             </div>
 
                             {/* 4 Moves Interactive Slots */}
@@ -2915,9 +2922,10 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
                                               {filteredMoves.length} {filteredMoves.length === 1 ? 'move' : 'moves'}
                                             </span>
                                           </div>
-                                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                                          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.5rem' }}>
                                             {filteredMoves.sort().map(move => {
                                               const isCurrentMoveOfSlot = move.toLowerCase() === (localBuild.moves[activeSelectMoveSlot] || '').toLowerCase();
+                                              const moveDesc = getMoveDesc(move);
                                               return (
                                                 <button
                                                   key={move}
@@ -2938,24 +2946,39 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
                                                     '--type-color': typeColor,
                                                     '--type-color-bg': isCurrentMoveOfSlot ? typeColor : `${typeColor}08`,
                                                     '--type-color-hover': isCurrentMoveOfSlot ? typeColor : `${typeColor}20`,
-                                                    padding: '0.4rem 0.8rem',
+                                                    padding: '0.6rem 0.8rem',
                                                     borderRadius: '8px',
                                                     border: isCurrentMoveOfSlot ? `1px solid ${typeColor}` : `1px solid ${typeColor}30`,
                                                     background: isCurrentMoveOfSlot ? typeColor : `${typeColor}08`,
                                                     color: isCurrentMoveOfSlot ? '#ffffff' : 'var(--text-primary)',
-                                                    fontSize: '0.8rem',
+                                                    fontSize: '0.82rem',
                                                     fontWeight: 700,
                                                     textTransform: 'capitalize',
                                                     cursor: 'pointer',
-                                                    display: 'inline-flex',
-                                                    alignItems: 'center',
-                                                    gap: '0.3rem',
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    alignItems: 'flex-start',
+                                                    textAlign: 'left',
+                                                    width: '100%',
+                                                    gap: '0.15rem',
                                                     transition: 'all 0.15s'
                                                   }}
                                                   className={`move-option-button ${isCurrentMoveOfSlot ? 'active' : ''}`}
                                                 >
-                                                  {move}
-                                                  {isCurrentMoveOfSlot && <i className="fa-solid fa-check" style={{ fontSize: '0.7rem', marginLeft: '0.2rem' }}></i>}
+                                                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', width: '100%' }}>
+                                                    <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', backgroundColor: isCurrentMoveOfSlot ? '#ffffff' : typeColor }}></span>
+                                                    {move}
+                                                    {isCurrentMoveOfSlot && <span style={{ marginLeft: 'auto', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '0.15rem' }}><i className="fa-solid fa-check"></i> Selected</span>}
+                                                  </span>
+                                                  <span style={{ 
+                                                    fontSize: '0.68rem', 
+                                                    fontWeight: 500, 
+                                                    color: isCurrentMoveOfSlot ? 'rgba(255,255,255,0.85)' : 'var(--text-secondary)',
+                                                    fontStyle: 'italic',
+                                                    lineHeight: '1.25'
+                                                  }}>
+                                                    {moveDesc}
+                                                  </span>
                                                 </button>
                                               );
                                             })}
@@ -3645,6 +3668,11 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
                                           )}
                                           <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{member.heldItem}</span>
                                         </strong>
+                                        {member.heldItem !== 'None' && (
+                                          <span style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.62rem', fontStyle: 'italic', marginTop: '0.1rem', lineHeight: '1.2' }}>
+                                            {getItemDesc(member.heldItem)}
+                                          </span>
+                                        )}
                                       </div>
                                       <div>
                                         <span style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '0.65rem' }}>NATURE:</span>
@@ -3656,11 +3684,30 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
                                           {evDisplayString}
                                         </strong>
                                       </div>
-                                      <div style={{ gridColumn: 'span 2' }}>
-                                        <span style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '0.65rem' }}>ACTIVE MOVES:</span>
-                                        <strong style={{ display: 'block', color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={member.selectedMoves.join(', ') || 'None set'}>
-                                          {member.selectedMoves.length > 0 ? member.selectedMoves.join(' / ') : 'None configured'}
-                                        </strong>
+                                      <div style={{ gridColumn: 'span 2', borderTop: '1px dashed #f1f5f9', paddingTop: '0.5rem', marginTop: '0.2rem' }}>
+                                        <span style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '0.65rem', marginBottom: '0.3rem' }}>ACTIVE MOVES & DESCRIPTIONS:</span>
+                                        {member.selectedMoves.length > 0 ? (
+                                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                                            {member.selectedMoves.map(mv => {
+                                              const normalizedMoveName = mv ? mv.toLowerCase() : '';
+                                              const moveType = MOVE_TYPES[normalizedMoveName] || customMoveTypes[normalizedMoveName] || 'normal';
+                                              const typeColor = TYPE_TRANSLATIONS[moveType]?.color || '#999';
+                                              return (
+                                                <div key={mv} style={{ fontSize: '0.72rem', display: 'flex', flexDirection: 'column', gap: '0.05rem' }}>
+                                                  <span style={{ fontWeight: 700, color: 'var(--text-primary)', textTransform: 'capitalize', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                                    <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', backgroundColor: typeColor }}></span>
+                                                    {mv}
+                                                  </span>
+                                                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.65rem', fontStyle: 'italic', paddingLeft: '0.6rem', lineHeight: '1.25' }}>
+                                                    {getMoveDesc(mv)}
+                                                  </span>
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+                                        ) : (
+                                          <strong style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.72rem' }}>None configured</strong>
+                                        )}
                                       </div>
                                     </div>
 
