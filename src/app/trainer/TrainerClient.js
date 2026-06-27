@@ -1413,7 +1413,13 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
       const savedBuilds = localStorage.getItem(`trainer_builds_${trainerId}`);
       if (savedBuilds) {
         try {
-          setBuilds(JSON.parse(savedBuilds));
+          const parsed = JSON.parse(savedBuilds);
+          Object.keys(parsed).forEach(key => {
+            if (parsed[key] && parsed[key].heldItem && parsed[key].heldItem.includes('/')) {
+              parsed[key].heldItem = parsed[key].heldItem.split('/')[0].trim();
+            }
+          });
+          setBuilds(parsed);
         } catch (e) {
           console.error("Failed to parse trainer builds", e);
         }
@@ -1432,8 +1438,12 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
         evs: getSuggestedEvSpread && parseEvSpreadString ? parseEvSpreadString(getSuggestedEvSpread(activeEditBuild.pokemon)) : { hp: 0, attack: 0, defense: 0, 'special-attack': 0, 'special-defense': 0, speed: 0 },
         moves: ['', '', '', '']
       };
-      setLocalBuild(JSON.parse(JSON.stringify(currentBuild)));
-      setMoveSearchQuery(currentBuild.moves.map(m => m || ''));
+      const cleanBuild = JSON.parse(JSON.stringify(currentBuild));
+      if (cleanBuild && cleanBuild.heldItem && cleanBuild.heldItem.includes('/')) {
+        cleanBuild.heldItem = cleanBuild.heldItem.split('/')[0].trim();
+      }
+      setLocalBuild(cleanBuild);
+      setMoveSearchQuery(cleanBuild.moves.map(m => m || ''));
     } else {
       setLocalBuild(null);
       setMoveSearchQuery(['', '', '', '']);
