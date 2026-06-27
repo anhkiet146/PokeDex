@@ -453,8 +453,7 @@ const arePokemonRelated = (nameA, nameB) => {
   return false;
 };
 
-const getTeamSuggestions = (ownedIds, allPkmn, includeUnowned, format, archetype) => {
-  // Helpers
+const getTeamSuggestionsList = (ownedIds, allPkmn, includeUnowned, format, archetype) => {
   const getStat = (p, name) => p.stats?.find(s => s.name === name)?.value || 60;
   
   const getRoleIcon = (role) => {
@@ -467,33 +466,22 @@ const getTeamSuggestions = (ownedIds, allPkmn, includeUnowned, format, archetype
     return 'fa-circle-nodes';
   };
 
-  // Case 1: Suggesting dynamically from OWNED Pokémon only
-  if (!includeUnowned) {
-    if (!ownedIds || ownedIds.length === 0) {
-      return null;
-    }
-    
-    // Get all owned Pokémon data
+  const getDynamicTeamForArchetype = (arch) => {
+    if (!ownedIds || ownedIds.length === 0) return null;
     const ownedPkmn = allPkmn.filter(p => ownedIds.includes(p.id));
-    if (ownedPkmn.length === 0) {
-      return null;
-    }
+    if (ownedPkmn.length === 0) return null;
 
-    // Dynamic selection algorithm (greedy type-synergy builder)
     const candidates = [...ownedPkmn];
     const selected = [];
     const activeTypes = new Set();
-
-    // Loop to select up to 6 Pokémon
     const targetSize = Math.min(6, candidates.length);
+
     for (let i = 0; i < targetSize; i++) {
       let bestIndex = -1;
       let bestScore = -Infinity;
 
       for (let j = 0; j < candidates.length; j++) {
         const p = candidates[j];
-        
-        // Base score calculation based on archetype
         let baseScore = 0;
         const atk = getStat(p, 'attack');
         const spa = getStat(p, 'special-attack');
@@ -502,19 +490,18 @@ const getTeamSuggestions = (ownedIds, allPkmn, includeUnowned, format, archetype
         const def = getStat(p, 'defense');
         const spdef = getStat(p, 'special-defense');
 
-        if (archetype === 'offense') {
+        if (arch === 'offense') {
           baseScore = Math.max(atk, spa) * 1.5 + spe;
-        } else if (archetype === 'defense') {
+        } else if (arch === 'defense') {
           baseScore = hp + def + spdef;
         } else { // balanced
           baseScore = hp + Math.max(atk, spa) + Math.max(def, spdef) + spe;
         }
 
-        // Apply penalty for type overlaps to maximize coverage
         let penalty = 0;
         p.types.forEach(t => {
           if (activeTypes.has(t)) {
-            penalty += 45; // Subtract 45 points per overlapping type
+            penalty += 45;
           }
         });
 
@@ -529,8 +516,6 @@ const getTeamSuggestions = (ownedIds, allPkmn, includeUnowned, format, archetype
         const chosen = candidates[bestIndex];
         selected.push(chosen);
         chosen.types.forEach(t => activeTypes.add(t));
-        
-        // Remove chosen and any related Pokémon from candidates
         candidates.splice(bestIndex, 1);
         for (let k = candidates.length - 1; k >= 0; k--) {
           if (arePokemonRelated(chosen.name, candidates[k].name)) {
@@ -540,9 +525,7 @@ const getTeamSuggestions = (ownedIds, allPkmn, includeUnowned, format, archetype
       }
     }
 
-    // Map selected Pokémon to include dynamic roles
     const detailedPokemons = selected.map(p => {
-      // Determine role based on stats
       let role = 'Balanced Combatant';
       const atk = getStat(p, 'attack');
       const spa = getStat(p, 'special-attack');
@@ -570,73 +553,94 @@ const getTeamSuggestions = (ownedIds, allPkmn, includeUnowned, format, archetype
       };
     });
 
+    const archLabel = arch.charAt(0).toUpperCase() + arch.slice(1);
     const formatLabel = format === 'single' ? 'Singles' : 'Doubles';
-    const archetypeLabel = archetype.charAt(0).toUpperCase() + archetype.slice(1);
 
     return {
-      teamName: `Your Custom ${archetypeLabel} ${formatLabel} Core`,
-      description: `This team was dynamically compiled from your collection. It selects your strongest Pokémon matching the '${archetype}' archetype and optimizes for type coverage to ensure high tactical flexibility in battle.`,
+      teamName: `Your Custom ${archLabel} ${formatLabel} Core`,
+      description: `Đội hình được xây dựng tự động từ bộ sưu tập của bạn, tối ưu hóa chỉ số cho thiên hướng '${archLabel}' và đa dạng hóa thuộc tính để tăng độ tùy biến chiến thuật.`,
+      operation: `Đội hình xoay quanh phối hợp các Pokémon hệ đối lập để bổ trợ phòng ngự. Hãy dẫn đầu bằng các Pokémon hỗ trợ tốc độ/tiện ích (Speed Control/Utility) để thiết lập thế trận, sau đó đưa các chủ lực Sweeper (${detailedPokemons.slice(0, 2).map(p => formatPokemonName(p.name)).join(', ')}) ra sân dồn sát thương dứt điểm trận đấu.`,
       source: 'Collection Intelligence Builder',
-      pokemons: detailedPokemons
+      pokemons: detailedPokemons,
+      unownedCount: 0
     };
+  };
+
+  // Case 1: Suggesting dynamically from OWNED Pokémon only (Return at least 3 teams)
+  if (!includeUnowned) {
+    const teamsList = [];
+    const offenses = getDynamicTeamForArchetype('offense');
+    const defenses = getDynamicTeamForArchetype('defense');
+    const balanced = getDynamicTeamForArchetype('balanced');
+    if (offenses) teamsList.push(offenses);
+    if (defenses) teamsList.push(defenses);
+    if (balanced) teamsList.push(balanced);
+    return teamsList.slice(0, 3);
   }
 
   // Case 2: Suggesting from Predefined META Teams (includeUnowned is true)
-  let matchingTeams = metaTeams.filter(t => t.format === format && t.archetype === archetype);
-  
-  if (matchingTeams.length === 0) {
-    matchingTeams = metaTeams.filter(t => t.format === format);
-  }
-  
-  if (matchingTeams.length === 0) {
-    return null;
-  }
-  
-  // Select the meta team. If ownedIds are provided, find the one with the highest match
-  let selectedTeam = matchingTeams[0];
-  if (ownedIds && ownedIds.length > 0) {
-    let bestTeam = matchingTeams[0];
-    let maxOwnedCount = -1;
-    
-    for (const team of matchingTeams) {
-      const ownedCount = team.pokemons.filter(p => ownedIds.includes(p.id)).length;
-      if (ownedCount > maxOwnedCount) {
-        maxOwnedCount = ownedCount;
-        bestTeam = team;
-      }
-    }
-    selectedTeam = bestTeam;
-  }
+  let candidates = metaTeams.filter(t => t.format === format);
 
-  const detailedPokemons = selectedTeam.pokemons.map(tp => {
-    const found = allPkmn.find(p => p.id === tp.id);
-    if (found) {
-      return {
-        ...found,
-        roleName: tp.role,
-        roleIcon: getRoleIcon(tp.role),
-        isOwned: ownedIds.includes(tp.id)
-      };
-    } else {
-      return {
-        id: tp.id,
-        name: tp.name,
-        image: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${tp.id}.png`,
-        types: ['normal'],
-        stats: [],
-        roleName: tp.role,
-        roleIcon: getRoleIcon(tp.role),
-        isOwned: ownedIds.includes(tp.id)
-      };
-    }
+  const scoredTeams = candidates.map(team => {
+    const detailedPokemons = team.pokemons.map(tp => {
+      const found = allPkmn.find(p => p.id === tp.id);
+      const isOwned = ownedIds.includes(tp.id);
+      if (found) {
+        return {
+          ...found,
+          roleName: tp.role,
+          roleIcon: getRoleIcon(tp.role),
+          isOwned
+        };
+      } else {
+        return {
+          id: tp.id,
+          name: tp.name,
+          image: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${tp.id}.png`,
+          types: ['normal'],
+          stats: [],
+          roleName: tp.role,
+          roleIcon: getRoleIcon(tp.role),
+          isOwned
+        };
+      }
+    });
+
+    const unownedCount = detailedPokemons.filter(p => !p.isOwned).length;
+
+    return {
+      teamName: team.name,
+      description: team.description,
+      operation: team.operation,
+      source: team.source,
+      pokemons: detailedPokemons,
+      unownedCount,
+      archetype: team.archetype
+    };
   });
 
-  return {
-    teamName: selectedTeam.name,
-    description: selectedTeam.description,
-    source: selectedTeam.source,
-    pokemons: detailedPokemons
-  };
+  // Prioritize teams where unownedCount is between 1 and 4!
+  const priorityTeams = scoredTeams.filter(t => t.unownedCount >= 1 && t.unownedCount <= 4);
+  const otherTeams = scoredTeams.filter(t => t.unownedCount === 0 || t.unownedCount > 4);
+
+  priorityTeams.sort((a, b) => a.unownedCount - b.unownedCount);
+  otherTeams.sort((a, b) => a.unownedCount - b.unownedCount);
+
+  const mergedTeams = [...priorityTeams, ...otherTeams];
+
+  mergedTeams.sort((a, b) => {
+    const aMatch = a.archetype === archetype ? 1 : 0;
+    const bMatch = b.archetype === archetype ? 1 : 0;
+    if (aMatch !== bMatch) return bMatch - aMatch;
+    
+    const aTarget = (a.unownedCount >= 1 && a.unownedCount <= 4) ? 1 : 0;
+    const bTarget = (b.unownedCount >= 1 && b.unownedCount <= 4) ? 1 : 0;
+    if (aTarget !== bTarget) return bTarget - aTarget;
+
+    return a.unownedCount - b.unownedCount;
+  });
+
+  return mergedTeams.slice(0, 3);
 };
 
 const cosineSimilarity = (vecA, vecB) => {
@@ -1406,6 +1410,7 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
   const [suggestScope, setSuggestScope] = useState('all'); // owned | all
   const [suggestFormat, setSuggestFormat] = useState('double'); // single | double
   const [suggestArchetype, setSuggestArchetype] = useState('balanced'); // balanced | offense | defense
+  const [activeSuggestTabIdx, setActiveSuggestTabIdx] = useState(0);
 
   // Custom team builder states
   const [teams, setTeams] = useState(initialTrainer.teams || [
@@ -2165,7 +2170,9 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
   };
   
   const ownedPokemonDetails = allPokemon.filter(p => trainer.ownedPokemon.includes(p.id));
-  const suggestionResult = getTeamSuggestions(trainer.ownedPokemon, allPokemon, suggestScope === 'all', suggestFormat, suggestArchetype);
+  const suggestionResults = getTeamSuggestionsList(trainer.ownedPokemon, allPokemon, suggestScope === 'all', suggestFormat, suggestArchetype) || [];
+  const safeTabIdx = activeSuggestTabIdx >= suggestionResults.length ? 0 : activeSuggestTabIdx;
+  const suggestionResult = suggestionResults[safeTabIdx] || null;
   const suggestedTeam = suggestionResult ? suggestionResult.pokemons : [];
 
   const activeTeamIdsForRec = (teams[activeTeamIdx] || []).filter(Boolean);
@@ -4103,6 +4110,57 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
                     </div>
                   </div>
 
+                  {suggestionResults.length > 0 && (
+                    <div style={{ display: 'flex', gap: '0.6rem', marginBottom: '1.2rem', flexWrap: 'wrap' }}>
+                      {suggestionResults.map((team, idx) => {
+                        const isActive = idx === safeTabIdx;
+                        
+                        let badgeText = "";
+                        if (suggestScope === 'all') {
+                          // Display unowned count range filter feedback: e.g. "1 Unowned"
+                          badgeText = team.unownedCount === 0 ? "Fully Owned" : `${team.unownedCount} Unowned`;
+                        } else {
+                          badgeText = `Owned`;
+                        }
+
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setActiveSuggestTabIdx(idx)}
+                            style={{
+                              padding: '0.5rem 1rem',
+                              borderRadius: '10px',
+                              border: isActive ? '1px solid var(--primary-color)' : '1px solid var(--border-color)',
+                              background: isActive ? 'var(--primary-light)' : '#ffffff',
+                              color: isActive ? 'var(--primary-color)' : 'var(--text-primary)',
+                              fontSize: '0.8rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.5rem',
+                              transition: 'all 0.2s',
+                              boxShadow: '0 2px 5px rgba(0,0,0,0.02)'
+                            }}
+                          >
+                            <span>Đội {idx + 1}: {team.teamName.replace("Worlds 2024 Champion Team", "Worlds 24").replace("Worlds 2023 Champion Team", "Worlds 23")}</span>
+                            <span style={{
+                              fontSize: '0.65rem',
+                              background: isActive ? 'var(--primary-color)' : '#f1f5f9',
+                              color: isActive ? '#ffffff' : '#64748b',
+                              padding: '0.15rem 0.45rem',
+                              borderRadius: '8px',
+                              fontWeight: 800
+                            }}>
+                              {badgeText}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
                   {suggestedTeam.length > 0 && (
                     <div className="collection-table-card" style={{ marginBottom: '1.5rem', padding: '1.2rem', borderLeft: '5px solid var(--primary-color)' }}>
                       <h4 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-primary)', fontWeight: 800 }}>
@@ -4111,6 +4169,16 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
                       <p style={{ margin: '0.4rem 0 0.6rem 0', fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
                         {suggestionResult.description}
                       </p>
+                      {suggestionResult.operation && (
+                        <div style={{ marginTop: '0.8rem', marginBottom: '1rem', padding: '0.8rem 1rem', background: '#f8fafc', borderRadius: '10px', border: '1px dashed #cbd5e1' }}>
+                          <strong style={{ fontSize: '0.82rem', color: 'var(--primary-color)', display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.35rem' }}>
+                            <i className="fa-solid fa-gamepad"></i> Hướng Dẫn Vận Hành & Chiến Thuật
+                          </strong>
+                          <p style={{ margin: 0, fontSize: '0.82rem', color: '#475569', lineHeight: '1.6' }}>
+                            {suggestionResult.operation}
+                          </p>
+                        </div>
+                      )}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.8rem' }}>
                         <span style={{ fontSize: '0.75rem', color: 'var(--primary-color)', fontWeight: 700 }}>
                           <i className="fa-solid fa-square-rss" style={{ marginRight: '0.3rem' }}></i>Source: {suggestionResult.source}
