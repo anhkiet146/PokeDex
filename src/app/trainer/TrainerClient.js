@@ -2397,16 +2397,25 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
                                     <div className="slot-badge-list">
                                       {b.ability && <span className="slot-build-badge slot-badge-ability" title={`Ability: ${b.ability}`}>{b.ability}</span>}
                                       {b.heldItem && (
-                                        <span className="slot-build-badge slot-badge-item" title={`Item: ${b.heldItem}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
-                                          {getItemImageUrl(b.heldItem) && (
-                                            <img 
-                                              src={getItemImageUrl(b.heldItem)} 
-                                              alt="" 
-                                              style={{ width: '12px', height: '12px', objectFit: 'contain' }}
-                                              onError={(e) => { e.target.style.display = 'none'; }}
-                                            />
-                                          )}
-                                          {b.heldItem}
+                                        <span className="slot-build-badge slot-badge-item" title={`Item: ${b.heldItem}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', flexWrap: 'wrap' }}>
+                                          {b.heldItem.split('/').map((part, pIdx) => {
+                                            const trimmed = part.trim();
+                                            const imgUrl = getItemImageUrl(trimmed);
+                                            return (
+                                              <span key={pIdx} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.1rem' }}>
+                                                {imgUrl && (
+                                                  <img 
+                                                    src={imgUrl} 
+                                                    alt="" 
+                                                    style={{ width: '12px', height: '12px', objectFit: 'contain' }}
+                                                    onError={(e) => { e.target.style.display = 'none'; }}
+                                                  />
+                                                )}
+                                                {trimmed}
+                                                {pIdx < b.heldItem.split('/').length - 1 && ' / '}
+                                              </span>
+                                            );
+                                          })}
                                         </span>
                                       )}
                                       {b.nature && <span className="slot-build-badge slot-badge-nature" title={`Nature: ${b.nature}`}>{b.nature}</span>}
@@ -2718,14 +2727,24 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
                             <div className="build-field">
                               <label>Held Item</label>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                {localBuild.heldItem && localBuild.heldItem !== 'None' && getItemImageUrl(localBuild.heldItem) && (
-                                  <div style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '0.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', flexShrink: 0 }}>
-                                    <img 
-                                      src={getItemImageUrl(localBuild.heldItem)} 
-                                      alt={localBuild.heldItem}
-                                      style={{ width: '28px', height: '28px', objectFit: 'contain' }}
-                                      onError={(e) => { e.target.style.display = 'none'; }}
-                                    />
+                                {localBuild.heldItem && localBuild.heldItem !== 'None' && (
+                                  <div style={{ display: 'flex', gap: '0.25rem' }}>
+                                    {localBuild.heldItem.split('/').map((part, pIdx) => {
+                                      const trimmed = part.trim();
+                                      const imgUrl = getItemImageUrl(trimmed);
+                                      if (!imgUrl) return null;
+                                      return (
+                                        <div key={pIdx} style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '0.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', flexShrink: 0 }}>
+                                          <img 
+                                            src={imgUrl} 
+                                            alt={trimmed}
+                                            title={trimmed}
+                                            style={{ width: '28px', height: '28px', objectFit: 'contain' }}
+                                            onError={(e) => { e.target.style.display = 'none'; }}
+                                          />
+                                        </div>
+                                      );
+                                    })}
                                   </div>
                                 )}
                                 <select 
@@ -2750,7 +2769,10 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
                               {localBuild.heldItem && localBuild.heldItem !== 'None' && (
                                 <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.35rem', fontStyle: 'italic', lineHeight: '1.3' }}>
                                   <i className="fa-solid fa-circle-question" style={{ marginRight: '0.2rem', color: '#6390f0' }}></i>
-                                  {getItemDesc(localBuild.heldItem)}
+                                  {localBuild.heldItem.split('/').map(part => {
+                                    const trimmed = part.trim();
+                                    return `${trimmed}: ${getItemDesc(trimmed)}`;
+                                  }).join(' | ')}
                                 </p>
                               )}
                             </div>
@@ -3662,15 +3684,27 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
                                       </div>
                                       <div>
                                         <span style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '0.65rem' }}>HELD ITEM:</span>
-                                        <strong style={{ display: 'block', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
-                                          {member.heldItem !== 'None' && getItemImageUrl(member.heldItem) && (
-                                            <img src={getItemImageUrl(member.heldItem)} alt="" style={{ width: '12px', height: '12px', objectFit: 'contain' }} />
-                                          )}
-                                          <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{member.heldItem}</span>
+                                        <strong style={{ display: 'block', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.2rem', flexWrap: 'wrap' }}>
+                                          {member.heldItem !== 'None' && member.heldItem.split('/').map((part, pIdx) => {
+                                            const trimmed = part.trim();
+                                            const imgUrl = getItemImageUrl(trimmed);
+                                            return (
+                                              <span key={pIdx} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.1rem' }}>
+                                                {imgUrl && (
+                                                  <img src={imgUrl} alt="" style={{ width: '12px', height: '12px', objectFit: 'contain' }} onError={(e) => { e.target.style.display = 'none'; }} />
+                                                )}
+                                                {trimmed}
+                                                {pIdx < member.heldItem.split('/').length - 1 && ' / '}
+                                              </span>
+                                            );
+                                          })}
                                         </strong>
                                         {member.heldItem !== 'None' && (
-                                          <span style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.62rem', fontStyle: 'italic', marginTop: '0.1rem', lineHeight: '1.2' }}>
-                                            {getItemDesc(member.heldItem)}
+                                          <span style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.62rem', fontStyle: 'italic', marginTop: '0.1rem', lineHeight: '1.25' }}>
+                                            {member.heldItem.split('/').map(part => {
+                                              const trimmed = part.trim();
+                                              return `${trimmed}: ${getItemDesc(trimmed)}`;
+                                            }).join(' | ')}
                                           </span>
                                         )}
                                       </div>
