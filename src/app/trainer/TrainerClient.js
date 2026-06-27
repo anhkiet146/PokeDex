@@ -454,6 +454,8 @@ const arePokemonRelated = (nameA, nameB) => {
 };
 
 const getTeamSuggestionsList = (ownedIds, allPkmn, includeUnowned, format, archetype) => {
+  const getStat = (p, name) => p.stats?.find(s => s.name === name)?.value || 60;
+
   const getRoleIcon = (role) => {
     const r = role.toLowerCase();
     if (r.includes('tailwind') || r.includes('speed') || r.includes('pivot')) return 'fa-wind';
@@ -464,7 +466,150 @@ const getTeamSuggestionsList = (ownedIds, allPkmn, includeUnowned, format, arche
     return 'fa-circle-nodes';
   };
 
-  // Get and score all meta teams based on format
+  const getBalancedDynamicTeam = (arch) => {
+    if (!ownedIds || ownedIds.length === 0) return null;
+    const ownedPkmn = allPkmn.filter(p => ownedIds.includes(p.id));
+    if (ownedPkmn.length === 0) return null;
+
+    // Classify all owned candidates
+    const candidates = ownedPkmn.map(p => {
+      const atk = getStat(p, 'attack');
+      const spa = getStat(p, 'special-attack');
+      const spe = getStat(p, 'speed');
+      const hp = getStat(p, 'hp');
+      const def = getStat(p, 'defense');
+      const spdef = getStat(p, 'special-defense');
+
+      let sweeperScore = Math.max(atk, spa) * 1.5 + spe;
+      let tankScore = hp * 1.2 + def + spdef;
+      let supportScore = spe * 1.3 + hp + spdef;
+
+      if (arch === 'offense') {
+        sweeperScore += 50;
+      } else if (arch === 'defense') {
+        tankScore += 50;
+      }
+
+      let role = 'chủ lực';
+      let bestScore = sweeperScore;
+      if (tankScore > bestScore) {
+        role = 'tank';
+        bestScore = tankScore;
+      }
+      if (supportScore > bestScore && supportScore > tankScore) {
+        role = 'support';
+        bestScore = supportScore;
+      }
+
+      return { p, role, score: bestScore };
+    });
+
+    const sweepers = candidates.filter(c => c.role === 'chủ lực').map(c => c.p);
+    const tanks = candidates.filter(c => c.role === 'tank').map(c => c.p);
+    const supports = candidates.filter(c => c.role === 'support').map(c => c.p);
+
+    const selected = [];
+    const usedIds = new Set();
+
+    const addFromPool = (pool, count) => {
+      let added = 0;
+      const sortedPool = [...pool].sort((a, b) => {
+        const aVal = getStat(a, 'hp') + Math.max(getStat(a, 'attack'), getStat(a, 'special-attack')) + getStat(a, 'speed');
+        const bVal = getStat(b, 'hp') + Math.max(getStat(b, 'attack'), getStat(b, 'special-attack')) + getStat(b, 'speed');
+        return bVal - aVal;
+      });
+      for (const p of sortedPool) {
+        if (added >= count) break;
+        if (!usedIds.has(p.id)) {
+          selected.push(p);
+          usedIds.add(p.id);
+          added++;
+        }
+      }
+    };
+
+    if (arch === 'offense') {
+      addFromPool(sweepers, 3);
+      addFromPool(supports, 2);
+      addFromPool(tanks, 1);
+    } else if (arch === 'defense') {
+      addFromPool(tanks, 3);
+      addFromPool(supports, 2);
+      addFromPool(sweepers, 1);
+    } else {
+      addFromPool(sweepers, 2);
+      addFromPool(tanks, 2);
+      addFromPool(supports, 2);
+    }
+
+    const remainingCandidates = candidates.map(c => c.p).filter(p => !usedIds.has(p.id));
+    const targetSize = Math.min(6, ownedPkmn.length);
+    while (selected.length < targetSize && remainingCandidates.length > 0) {
+      const next = remainingCandidates.shift();
+      selected.push(next);
+      usedIds.add(next.id);
+    }
+
+    const detailedPokemons = selected.map(p => {
+      let roleLabel = 'Chủ lực (Sweeper)';
+      let roleIcon = 'fa-hand-fist';
+
+      if (sweepers.some(s => s.id === p.id)) {
+        roleLabel = 'Chủ lực (Sweeper)';
+        roleIcon = 'fa-hand-fist';
+      } else if (tanks.some(t => t.id === p.id)) {
+        roleLabel = 'Chống chịu (Tank)';
+        roleIcon = 'fa-shield-halved';
+      } else if (supports.some(s => s.id === p.id)) {
+        roleLabel = 'Hỗ trợ (Support)';
+        roleIcon = 'fa-wind';
+      }
+
+      return {
+        ...p,
+        roleName: roleLabel,
+        roleIcon,
+        isOwned: true
+      };
+    });
+
+    const archLabel = arch.charAt(0).toUpperCase() + arch.slice(1);
+    const formatLabel = format === 'single' ? 'Singles' : 'Doubles';
+
+    return {
+      teamName: `Your Custom ${archLabel} ${formatLabel} Core`,
+      description: `Đội hình chiến thuật ${archLabel} được tối ưu hóa từ bộ sưu tập của bạn, đảm bảo cơ cấu VGC tiêu chuẩn: đầy đủ Chủ lực gây sát thương, Tank chống chịu và Support hỗ trợ hiệu ứng.`,
+      operation: `Sử dụng các Pokémon Hỗ trợ (Support) để kiểm soát tốc độ trận đấu hoặc tạo hiệu ứng bất lợi cho đối thủ. Đưa các Pokémon Chống chịu (Tank) vào sân để đỡ đòn và kéo giãn đội hình địch, tạo cơ hội cho các Chủ lực (Sweeper) dồn sát thương dứt điểm trận đấu.`,
+      source: 'Collection Balance Intelligence',
+      pokemons: detailedPokemons,
+      unownedCount: 0,
+      archetype: arch
+    };
+  };
+
+  // If includeUnowned is false, we try to see if they own any meta teams completely (0 unowned)
+  // But if they don't, we suggest balanced role-based teams dynamically built from their own Pokémon collection!
+  if (!includeUnowned) {
+    const teamsList = [];
+    const offenses = getBalancedDynamicTeam('offense');
+    const defenses = getBalancedDynamicTeam('defense');
+    const balanced = getBalancedDynamicTeam('balanced');
+    if (offenses) teamsList.push(offenses);
+    if (defenses) teamsList.push(defenses);
+    if (balanced) teamsList.push(balanced);
+
+    // Sort to boost the selected archetype to the front
+    teamsList.sort((a, b) => {
+      const aMatch = a.archetype === archetype ? 1 : 0;
+      const bMatch = b.archetype === archetype ? 1 : 0;
+      if (aMatch !== bMatch) return bMatch - aMatch;
+      return 0;
+    });
+
+    return teamsList.slice(0, 3);
+  }
+
+  // Suggesting from Predefined META Teams (includeUnowned is true)
   const candidates = metaTeams.filter(t => t.format === format);
 
   const scoredTeams = candidates.map(team => {
@@ -505,33 +650,16 @@ const getTeamSuggestionsList = (ownedIds, allPkmn, includeUnowned, format, arche
     };
   });
 
-  let sortedTeams = [];
+  // Prioritize 1-3 unowned first, then fully owned (0), then >3 unowned
+  const priorityTeams = scoredTeams.filter(t => t.unownedCount >= 1 && t.unownedCount <= 3);
+  const fullyOwnedTeams = scoredTeams.filter(t => t.unownedCount === 0);
+  const restTeams = scoredTeams.filter(t => t.unownedCount > 3);
 
-  if (includeUnowned) {
-    // Mode: Include Unowned
-    // Prioritize 1-3 unowned, then fully owned (0), then >3 unowned
-    const priorityTeams = scoredTeams.filter(t => t.unownedCount >= 1 && t.unownedCount <= 3);
-    const fullyOwnedTeams = scoredTeams.filter(t => t.unownedCount === 0);
-    const restTeams = scoredTeams.filter(t => t.unownedCount > 3);
+  priorityTeams.sort((a, b) => a.unownedCount - b.unownedCount);
+  fullyOwnedTeams.sort((a, b) => a.unownedCount - b.unownedCount);
+  restTeams.sort((a, b) => a.unownedCount - b.unownedCount);
 
-    priorityTeams.sort((a, b) => a.unownedCount - b.unownedCount);
-    fullyOwnedTeams.sort((a, b) => a.unownedCount - b.unownedCount);
-    restTeams.sort((a, b) => a.unownedCount - b.unownedCount);
-
-    sortedTeams = [...priorityTeams, ...fullyOwnedTeams, ...restTeams];
-  } else {
-    // Mode: Only My Pokemon
-    // Prioritize fully owned (0) first, then 1-3 unowned, then >3 unowned
-    const fullyOwnedTeams = scoredTeams.filter(t => t.unownedCount === 0);
-    const priorityTeams = scoredTeams.filter(t => t.unownedCount >= 1 && t.unownedCount <= 3);
-    const restTeams = scoredTeams.filter(t => t.unownedCount > 3);
-
-    priorityTeams.sort((a, b) => a.unownedCount - b.unownedCount);
-    fullyOwnedTeams.sort((a, b) => a.unownedCount - b.unownedCount);
-    restTeams.sort((a, b) => a.unownedCount - b.unownedCount);
-
-    sortedTeams = [...fullyOwnedTeams, ...priorityTeams, ...restTeams];
-  }
+  const sortedTeams = [...priorityTeams, ...fullyOwnedTeams, ...restTeams];
 
   // Boost teams matching selected archetype
   sortedTeams.sort((a, b) => {
