@@ -2224,7 +2224,7 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
         let teamChanged = false;
         const newTeams = teams.map((team) => {
           return team.map((slotId) => {
-            if (slotId === pokemonId) {
+            if (slotId !== null && Number(slotId) === Number(pokemonId)) {
               teamChanged = true;
               return null;
             }
@@ -2239,7 +2239,7 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
 
           teams.forEach((team, tIdx) => {
             team.forEach((slotId, sIdx) => {
-              if (slotId === pokemonId) {
+              if (slotId !== null && Number(slotId) === Number(pokemonId)) {
                 const key = `${tIdx}_${sIdx}`;
                 if (updatedBuilds[key]) {
                   delete updatedBuilds[key];
