@@ -650,26 +650,28 @@ const getTeamSuggestionsList = (ownedIds, allPkmn, includeUnowned, format, arche
     };
   });
 
-  // Prioritize 1-3 unowned first, then fully owned (0), then >3 unowned
-  const priorityTeams = scoredTeams.filter(t => t.unownedCount >= 1 && t.unownedCount <= 3);
-  const fullyOwnedTeams = scoredTeams.filter(t => t.unownedCount === 0);
-  const restTeams = scoredTeams.filter(t => t.unownedCount > 3);
-
-  priorityTeams.sort((a, b) => a.unownedCount - b.unownedCount);
-  fullyOwnedTeams.sort((a, b) => a.unownedCount - b.unownedCount);
-  restTeams.sort((a, b) => a.unownedCount - b.unownedCount);
-
-  const sortedTeams = [...priorityTeams, ...fullyOwnedTeams, ...restTeams];
+  // Only include teams where the trainer owns at least 3 Pokémon (unownedCount <= 3)
+  const validTeams = scoredTeams.filter(t => t.unownedCount <= 3);
+  validTeams.sort((a, b) => a.unownedCount - b.unownedCount);
 
   // Boost teams matching selected archetype
-  sortedTeams.sort((a, b) => {
+  validTeams.sort((a, b) => {
     const aMatch = a.archetype === archetype ? 1 : 0;
     const bMatch = b.archetype === archetype ? 1 : 0;
     if (aMatch !== bMatch) return bMatch - aMatch;
     return 0;
   });
 
-  return sortedTeams.slice(0, 3);
+  let finalTeams = [...validTeams];
+
+  // If we have fewer than 3 teams, append restTeams (which have >3 unowned) sorted by owned count
+  if (finalTeams.length < 3) {
+    const restTeams = scoredTeams.filter(t => t.unownedCount > 3);
+    restTeams.sort((a, b) => a.unownedCount - b.unownedCount);
+    finalTeams = [...finalTeams, ...restTeams];
+  }
+
+  return finalTeams.slice(0, 3);
 };
 
 const cosineSimilarity = (vecA, vecB) => {

@@ -2,7 +2,7 @@
   {
     "name": "Luca Ceribelli's Worlds 2024 Champion Team",
     "description": "The winning team from the 2024 VGC World Championships featuring Miraidon as the central restricted powerhouse alongside Whimsicott for speed control and Ogerpon/Urshifu for offensive pressure.",
-    "operation": "Dẫn đầu với Whimsicott để dựng Tailwind kiểm soát tốc độ hoặc Farigiraf để chặn các đòn Fake Out đi trước. Miraidon là chủ lực tấn công đặc biệt, xả Electro Drift cực mạnh dưới sân điện Hadron Engine. Urshifu và Iron Hands dùng để quét sạch các mối đe dọa vật lý.",
+    "operation": "• Hỗ trợ làm gì cho team: Whimsicott dùng Prankster Tailwind tăng tốc độ toàn đội, dùng Moonblast bào máu và Encore ép đối phương kẹt chiêu. Farigiraf có nội tại Armor Tail chặn đứng hoàn toàn các chiêu ưu tiên như Fake Out, Grassy Glide, Sucker Punch bảo vệ đồng đội.\n• Đội hình dẫn đầu (Leads): Thường dẫn đầu bằng Whimsicott + Miraidon để áp đảo tốc độ và tấn công ngay lượt đầu, hoặc Farigiraf + Iron Hands nếu đối phương có xu hướng dùng Fake Out khống chế.\n• Hướng dẫn thiết lập (Setup): Kích hoạt Hadron Engine của Miraidon để gọi sân điện, nâng sức mạnh đặc biệt. Dùng Iron Hands để Fake Out khống chế mục tiêu nguy hiểm, sau đó chuyển đổi vị trí nhịp nhàng bằng các đòn đánh vật lý của Ogerpon và Urshifu.",
     "format": "double",
     "archetype": "offense",
     "pokemons": [
@@ -18,7 +18,7 @@
   {
     "name": "Shohei Kimura's Worlds 2023 Champion Team",
     "description": "The champion team from the 2023 VGC World Championships utilizing the Chien-Pao + Dragonite physical offensive core combined with Flutter Mane and Amoonguss redirection.",
-    "operation": "Sử dụng cặp đôi Dragonite + Chien-Pao làm chủ lực vật lý. Hào quang Sword of Ruin của Chien-Pao giảm 25% Defense của đối thủ, giúp đòn Extreme Speed (độ ưu tiên cao) của Dragonite và đòn chí mạng của Urshifu gây sát thương hủy diệt. Hỗ trợ câu lượt bằng Rage Powder của Amoonguss.",
+    "operation": "• Hỗ trợ làm gì cho team: Amoonguss dùng Rage Powder thu hút toàn bộ đòn đơn mục tiêu để bảo vệ đồng đội, dùng Spore ru ngủ khống chế và Pollen Puff hồi HP. Chien-Pao sở hữu hào quang Sword of Ruin giảm 25% Defense vật lý của toàn sân.\n• Đội hình dẫn đầu (Leads): Lead bằng Chien-Pao + Dragonite để tối đa sát thương vật lý phủ đầu, hoặc Amoonguss + Flutter Mane để vừa thủ vừa công đặc biệt.\n• Hướng dẫn thiết lập (Setup): Tận dụng đòn đi trước Extreme Speed của Dragonite kết hợp giảm Defense của Chien-Pao để dứt điểm nhanh kẻ địch. Đưa Rillaboom vào sân để gọi Grassy Terrain hồi phục và dùng Fake Out cấu rỉa.",
     "format": "double",
     "archetype": "balanced",
     "pokemons": [
@@ -34,7 +34,7 @@
   {
     "name": "Regulation H: Archaludon Rain Balance",
     "description": "A top-tier Regulation H team that utilizes Pelipper's rain setting to double Basculegion's speed via Swift Swim and charge Archaludon's Electro Shot instantly.",
-    "operation": "Dẫn đầu với Pelipper để gọi mưa (Drizzle) và dựng Tailwind kiểm soát tốc độ. Archaludon tăng thủ vật lý nhờ Stamina khi dính đòn, đồng thời xả Electro Shot bắn ngay lập tức trong trời mưa mà không cần tích tụ. Basculegion là chủ lực dọn dẹp sân đấu ở cuối trận nhờ tốc độ gấp đôi dưới mưa.",
+    "operation": "• Hỗ trợ làm gì cho team: Pelipper gọi mưa (Drizzle) tăng sát thương hệ Nước và dựng Tailwind. Amoonguss hỗ trợ chuyển hướng đòn đánh bằng Rage Powder và ru ngủ đối phương bằng Spore. Incineroar dùng Intimidate giảm Attack đối thủ.\n• Đội hình dẫn đầu (Leads): Pelipper + Archaludon để ngay lập tức kích hoạt trời mưa và tăng thế trận phòng thủ vật lý thông qua nội tại Stamina.\n• Hướng dẫn thiết lập (Setup): Trong trời mưa, Archaludon có thể bắn thẳng chiêu Electro Shot tăng Sp. Atk và gây sát thương khổng lồ mà không cần tích tụ. Basculegion được tung vào cuối trận dưới mưa, kích hoạt Swift Swim nhân đôi tốc độ để dọn dẹp các Pokémon còn lại.",
     "format": "double",
     "archetype": "balanced",
     "pokemons": [
@@ -50,7 +50,7 @@
   {
     "name": "Regulation H: Gholdengo / Sneasler Offense",
     "description": "An aggressive Regulation H team pairing Gholdengo's Make It Rain with Sneasler's Unburden sweep potential under Grassy Terrain seed triggers.",
-    "operation": "Thiết lập Grassy Terrain bằng Rillaboom để kích hoạt vật phẩm hạt Grassy Seed trên Sneasler, giúp tăng phòng thủ vật lý và nhân đôi tốc độ nhờ Unburden. Sneasler gây áp lực khống chế cực mạnh bằng Dire Claw, tạo khoảng trống cho Gholdengo thiết lập Nasty Plot và Make It Rain dọn sân.",
+    "operation": "• Hỗ trợ làm gì cho team: Rillaboom gọi Grassy Terrain để kích hoạt Grassy Seed trên Sneasler. Incineroar dùng Intimidate làm yếu sát thương vật lý của đối thủ và dùng Fake Out để câu lượt.\n• Đội hình dẫn đầu (Leads): Rillaboom + Sneasler để kích hoạt tăng phòng thủ và nhân đôi tốc độ của Sneasler nhờ Unburden ngay lượt đầu tiên.\n• Hướng dẫn thiết lập (Setup): Sneasler dùng Dire Claw gây hiệu ứng ngẫu nhiên cực kỳ khó chịu. Gholdengo tận dụng khoảng trống để dùng Nasty Plot tăng Sp. Atk rồi xả Make It Rain quét sân mà không sợ bị dính hiệu ứng nhờ nội tại Good as Gold.",
     "format": "double",
     "archetype": "offense",
     "pokemons": [
@@ -66,7 +66,7 @@
   {
     "name": "Regulation H: Bloodmoon Trick Room",
     "description": "A slow, bulky team centered around setting up Trick Room with Farigiraf to sweep the opponent using Bloodmoon Ursaluna and Torkoal's Eruption in the sun.",
-    "operation": "Dẫn đầu bằng Farigiraf để chặn đứng Fake Out của đối thủ nhờ Armor Tail và thiết lập không gian Trick Room. Khi Trick Room hoạt động, đưa Torkoal vào xả Eruption diện rộng cực mạnh dưới trời nắng của Drought, kết hợp với sát thương đơn mục tiêu khổng lồ của Ursaluna-Bloodmoon.",
+    "operation": "• Hỗ trợ làm gì cho team: Farigiraf dựng không gian Trick Room và chặn đứng Fake Out nhờ Armor Tail. Incineroar dùng Intimidate giảm công vật lý và Parting Shot để giảm công đặc biệt rồi đảo vị trí chủ lực vào sân an toàn.\n• Đội hình dẫn đầu (Leads): Farigiraf + Incineroar để đảm bảo chắc chắn dựng được Trick Room trong lượt đầu tiên.\n• Hướng dẫn thiết lập (Setup): Khi Trick Room đã được thiết lập thành công, đưa Torkoal và Ursaluna-Bloodmoon vào sân. Torkoal xả Eruption diện rộng dưới trời nắng của Drought, còn Ursaluna dùng Bloodmoon dứt điểm đơn mục tiêu.",
     "format": "double",
     "archetype": "defense",
     "pokemons": [
@@ -82,7 +82,7 @@
   {
     "name": "Regulation H: Mausape Beat Up",
     "description": "A classic strategy pairing Maushold's Beat Up with Annihilape to stack Rage Fist power up to 350BP in a single turn, backed by Archaludon.",
-    "operation": "Lead bằng cặp Maushold và Annihilape. Maushold sử dụng chiêu Beat Up tấn công thẳng vào đồng đội Annihilape để tích 4 tầng sát thương giúp đòn Rage Fist tăng vọt lên 350BP ngay lượt đầu tiên. Maushold dùng Follow Me để thu hút đòn đánh bảo vệ Annihilape càn quét đội hình địch.",
+    "operation": "• Hỗ trợ làm gì cho team: Maushold sở hữu Friend Guard giảm 25% sát thương nhận vào cho Annihilape và dùng Follow Me để thu hút đòn đánh. Clefairy cũng hỗ trợ Friend Guard và dùng chiêu Helping Hand tăng sát thương cho đồng đội.\n• Đội hình dẫn đầu (Leads): Maushold + Annihilape để kích hoạt combo cốt lõi của đội hình ngay lập tức.\n• Hướng dẫn thiết lập (Setup): Lượt 1, Maushold dùng chiêu Beat Up tấn công thẳng vào đồng đội Annihilape (nhận sát thương rất nhỏ) để sạc đòn Rage Fist lên mức tối đa 350BP, giúp Annihilape quét sạch đội hình đối phương.",
     "format": "double",
     "archetype": "offense",
     "pokemons": [
@@ -98,7 +98,7 @@
   {
     "name": "Regulation G: Koraidon Sun Hyper Offense",
     "description": "A high-powered solar-offensive team using Koraidon's Orichalcum Pulse to boost Flutter Mane and Chi-Yu's Fire attacks, supported by Raging Bolt.",
-    "operation": "Koraidon gọi nắng Orichalcum Pulse giúp tăng 33% Attack vật lý của bản thân và kích hoạt nội tại Protosynthesis giúp tăng tốc độ/sát thương cho Flutter Mane và Raging Bolt. Chi-Yu giảm Sp. Def đối phương bằng Beads of Ruin tạo điều kiện cho các đòn hỏa lực càn quét sân đấu.",
+    "operation": "• Hỗ trợ làm gì cho team: Koraidon gọi nắng Orichalcum Pulse kích hoạt Protosynthesis cho Flutter Mane và Raging Bolt. Chi-Yu giảm Sp. Def đối phương bằng Beads of Ruin.\n• Đội hình dẫn đầu (Leads): Koraidon + Flutter Mane để gây áp lực hỏa lực tối đa ngay lập tức dưới trời nắng.\n• Hướng dẫn thiết lập (Setup): Dùng đòn tấn công lửa vật lý cực mạnh Flare Blitz từ Koraidon và các đòn sấm sét Thunderclap ưu tiên từ Raging Bolt để hạ gục nhanh các mối đe dọa. Rillaboom dùng Fake Out để hỗ trợ bảo vệ lượt quét sân.",
     "format": "double",
     "archetype": "offense",
     "pokemons": [
@@ -114,7 +114,7 @@
   {
     "name": "Regulation G: Calyrex Shadow Rider Balance",
     "description": "A very standard Regulation G balance team that positions Calyrex-Shadow Rider to sweep teams with Astral Barrage, using Incineroar and Rillaboom to clear threats.",
-    "operation": "Vận hành xoay quanh việc thiết lập thế trận cho Calyrex-Shadow Rider dọn sân bằng Astral Barrage diện rộng hệ Ma cực mạnh. Sử dụng Fake Out/Intimidate của Incineroar và Rage Powder của Amoonguss để chặn đòn và câu lượt, hỗ trợ Calyrex an toàn bắn phá.",
+    "operation": "• Hỗ trợ làm gì cho team: Amoonguss chuyển hướng đòn bằng Rage Powder và ru ngủ đối thủ bằng Spore. Rillaboom gọi Grassy Terrain để giảm sát thương từ các đòn hệ Đất động đất.\n• Đội hình dẫn đầu (Leads): Calyrex + Incineroar để dùng Fake Out bảo kê Calyrex tấn công phủ đầu bằng Astral Barrage.\n• Hướng dẫn thiết lập (Setup): Calyrex tích lũy nội tại Grim Neigh (tăng Sp. Atk mỗi khi hạ gục mục tiêu) để quét sạch đối phương. Dùng Urshifu phá Focus Sash và Protect bằng đòn đi xuyên bảo vệ.",
     "format": "double",
     "archetype": "balanced",
     "pokemons": [
@@ -130,7 +130,7 @@
   {
     "name": "Regulation G: Iron Crown Psychic Spam",
     "description": "A high-powered psychic offensive team centering around Iron Crown's Tachyon Cutter and Indeedee's Psychic Terrain.",
-    "operation": "Dựng Psychic Terrain bằng Indeedee-F để ngăn các đòn đi trước Fake Out, đồng thời tăng 30% sát thương đòn hệ Siêu Linh cho Tachyon Cutter của Iron Crown. Iron Valiant hỗ trợ dồn tốc độ dọn dẹp các mục tiêu yếu phòng thủ.",
+    "operation": "• Hỗ trợ làm gì cho team: Indeedee-F dựng Psychic Terrain chặn hoàn toàn các đòn đi trước Fake Out/Sucker Punch và dùng Follow Me hút đòn. Porygon2 dựng Trick Room khi tốc độ đối thủ quá nhanh.\n• Đội hình dẫn đầu (Leads): Indeedee-F + Iron Crown để kích hoạt sân tâm linh và tăng sát thương đặc biệt.\n• Hướng dẫn thiết lập (Setup): Iron Crown xả chiêu Tachyon Cutter chém 2 phát liên tiếp trúng đích tuyệt đối. Đưa Ursaluna-Bloodmoon vào sân quét sạch kẻ địch khi Trick Room của Porygon2 hoạt động.",
     "format": "double",
     "archetype": "offense",
     "pokemons": [
@@ -146,7 +146,7 @@
   {
     "name": "Regulation H: Roaring Moon Tailwind Offense",
     "description": "An aggressive physical Tailwind team featuring Roaring Moon as a speedy support and sweeper alongside Gholdengo.",
-    "operation": "Dẫn đầu với Roaring Moon kích hoạt Booster Energy tăng Speed để dựng Tailwind ngay lượt 1. Roaring Moon dùng Knock Off hoặc Acrobatics quét mục tiêu, tạo khoảng trống cho Gholdengo tích Nasty Plot xả Make It Rain và Primarina dọn sân bằng Hyper Voice.",
+    "operation": "• Hỗ trợ làm gì cho team: Roaring Moon dựng Tailwind tăng gấp đôi tốc độ cho toàn đội. Amoonguss hỗ trợ hút đòn bằng Rage Powder. Incineroar dùng Intimidate làm yếu tấn công đối thủ.\n• Đội hình dẫn đầu (Leads): Roaring Moon + Incineroar để khống chế bằng Fake Out và dựng Tailwind an toàn.\n• Hướng dẫn thiết lập (Setup): Roaring Moon dùng Acrobatics hoặc Knock Off cấu máu kẻ địch. Gholdengo thiết lập Nasty Plot và xả Make It Rain quét sạch trận đấu, trong khi Primarina dùng Hyper Voice đặc biệt.",
     "format": "double",
     "archetype": "offense",
     "pokemons": [
@@ -162,7 +162,7 @@
   {
     "name": "Smogon OU: Dragapult / Kingambit Standard",
     "description": "A staple Smogon 6v6 Singles team built around Dragapult's speed and wall-breaking ability, culminating in a Kingambit sweep in the late-game.",
-    "operation": "Sử dụng Dragapult và Iron Valiant để gây áp lực tấn công nhanh liên tục và bào máu đối thủ. Great Tusk dọn bẫy và dựng bẫy đá. Giữ Kingambit ở cuối trận để tối đa hóa nội tại Supreme Overlord, quét sạch đối thủ bằng đòn đi trước Sucker Punch.",
+    "operation": "• Hỗ trợ làm gì cho team: Great Tusk dọn bẫy bằng Rapid Spin và rải bẫy Stealth Rock. Corviknight làm tường chắn vật lý vững chắc và dùng Defog dọn bẫy diện rộng.\n• Đội hình dẫn đầu (Leads): Lead bằng Dragapult để U-turn lấy lợi thế hoặc Great Tusk để rải bẫy bòn máu đối thủ ngay đầu trận.\n• Hướng dẫn thiết lập (Setup): Gây áp lực và cấu máu đối phương bằng Dragapult và Iron Valiant. Kingambit được giữ lại cuối trận để nhận buff tấn công tối đa từ nội tại Supreme Overlord, quét sạch đối thủ bằng đòn Sucker Punch.",
     "format": "single",
     "archetype": "balanced",
     "pokemons": [
@@ -172,6 +172,38 @@
       {"id": 1000, "name": "gholdengo", "role": "Spinblocker / Special Attacker / Good as Gold"},
       {"id": 1006, "name": "iron-valiant", "role": "Booster Energy Special Sweeper / Calm Mind"},
       {"id": 823, "name": "corviknight", "role": "Defog Hazard Remover / U-turn Bulky Wall"}
+    ],
+    "source": "Smogon OU Singles Meta"
+  },
+  {
+    "name": "Smogon OU: Rain Hyper Offense",
+    "description": "A high-speed Rain weather team using Swift Swim Swift Swim Barraskewda and Electro Shot Archaludon.",
+    "operation": "• Hỗ trợ làm gì cho team: Pelipper gọi mưa (Drizzle) hỗ trợ Swift Swim của Barraskewda và Electro Shot của Archaludon. Great Tusk dọn bẫy đối phương bằng Rapid Spin.\n• Đội hình dẫn đầu (Leads): Pelipper + Great Tusk để gọi mưa và dọn dẹp bẫy đá ngay từ đầu trận.\n• Hướng dẫn thiết lập (Setup): Barraskewda dồn sát thương vật lý cực nhanh hệ Nước dưới mưa bằng Liquidation. Archaludon bắn Electro Shot dứt điểm các mục tiêu chống chịu đặc biệt.",
+    "format": "single",
+    "archetype": "offense",
+    "pokemons": [
+      {"id": 279, "name": "pelipper", "role": "Drizzle Rain Setter / Damp Rock Pivot"},
+      {"id": 844, "name": "barraskewda", "role": "Swift Swim Physical Sweeper"},
+      {"id": 1018, "name": "archaludon", "role": "Electro Shot Rain Attacker / Stamina"},
+      {"id": 984, "name": "great-tusk", "role": "Rapid Spinner / Hazard Support"},
+      {"id": 812, "name": "rillaboom", "role": "Grassy Terrain Pivot / Priority revenge killer"},
+      {"id": 1000, "name": "gholdengo", "role": "Good as Gold Hazard blocker"}
+    ],
+    "source": "Smogon OU Singles Meta"
+  },
+  {
+    "name": "Smogon OU: Hazard Stack Stall",
+    "description": "A defensive stall team built around Gliscor, Blissey, and Ting-Lu to wear down opponents with hazards.",
+    "operation": "• Hỗ trợ làm gì cho team: Ting-Lu dùng Vessel of Ruin làm yếu Sp. Atk đối phương và rải Spikes. Gliscor rải Stealth Rock/Toxic Spikes và hồi máu bằng Poison Heal.\n• Đội hình dẫn đầu (Leads): Ting-Lu để rải bẫy gai Spikes tích lũy sát thương bị động lâu dài.\n• Hướng dẫn thiết lập (Setup): Liên tục đổi vị trí hồi HP nhờ Regenerator của Alomomola và dùng Wish bơm máu cho Blissey/Gliscor gặm nhấm sinh lực đối thủ bằng độc độc tố.",
+    "format": "single",
+    "archetype": "defense",
+    "pokemons": [
+      {"id": 994, "name": "ting-lu", "role": "Vessel of Ruin Bulky Spikes Hazard Setter"},
+      {"id": 472, "name": "gliscor", "role": "Poison Heal Toxic Spikes / Stealth Rock Defogger"},
+      {"id": 242, "name": "blissey", "role": "Natural Cure Special Defense Tank / Wish Passer"},
+      {"id": 823, "name": "corviknight", "role": "Pressure Defog Hazard Remover / U-turn Pivot"},
+      {"id": 1000, "name": "gholdengo", "role": "Spinblocker / Good as Gold blocker"},
+      {"id": 594, "name": "alomomola", "role": "Regenerator Wish Passer / Flip Turn Pivot"}
     ],
     "source": "Smogon OU Singles Meta"
   }
