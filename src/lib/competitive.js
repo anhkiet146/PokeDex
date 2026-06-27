@@ -1,3 +1,5 @@
+import { getReputableBuildSuggestions } from './competitive-sets';
+
 export const MOVE_VERSION_GROUP_PRIORITY = [
   'scarlet-violet',
   'sword-shield',
@@ -321,65 +323,38 @@ export function selectRecommendedMoves(pokemon, moveDetails, role = getBattleRol
 }
 
 export function createBuildSuggestions(pokemon, moveDetails, abilities = []) {
-  const stat = Object.fromEntries(pokemon.stats.map(item => [item.name, item.value]));
-  const attack = stat.attack || 0;
-  const specialAttack = stat['special-attack'] || 0;
-  const speed = stat.speed || 0;
-  const bulk = (stat.hp || 0) + (stat.defense || 0) + (stat['special-defense'] || 0);
-  const primaryAbility = abilities[0]?.name || 'unknown';
-  const hiddenAbility = abilities.find(ability => ability.isHidden)?.name;
-  const megaStone = getMegaHeldItem(pokemon.name);
-  const suggestions = [];
+  const rawSuggestions = getReputableBuildSuggestions(pokemon);
+  
+  return rawSuggestions.map(s => {
+    // Resolve moves names to full PokeAPI move details objects (matching name or slug format)
+    const resolvedMoves = s.moves.map(moveName => {
+      const match = moveDetails.find(md => {
+        const mdNameLower = md.name.toLowerCase().trim();
+        const inputLower = moveName.toLowerCase().trim();
+        return mdNameLower === inputLower || mdNameLower.replaceAll('-', ' ') === inputLower || mdNameLower.replaceAll(' ', '-') === inputLower;
+      });
 
-  if (specialAttack >= attack) {
-    suggestions.push({
-      title: speed >= 90 ? 'Fast Special Attacker' : 'Special Wallbreaker',
-      ability: formatPokemonName(primaryAbility),
-      item: megaStone || (speed >= 90 ? 'Choice Specs' : 'Life Orb'),
-      nature: speed >= 90 ? 'Timid' : 'Modest',
-      evSpread: '252 SpA / 4 SpD / 252 Spe',
-      moves: selectRecommendedMoves(pokemon, moveDetails, 'Fast Special Attacker'),
-      note: 'Ưu tiên STAB và coverage special từ learnset chính thức.'
+      if (match) {
+        return {
+          name: match.name,
+          type: match.type,
+          desc: match.desc
+        };
+      }
+
+      // Fallback object structure if not in PokeAPI learnset cache
+      return {
+        name: moveName,
+        type: 'normal',
+        desc: 'Chiêu thức chiến thuật đặc trưng.'
+      };
     });
-  }
 
-  if (attack >= specialAttack || Math.abs(attack - specialAttack) <= 20) {
-    suggestions.push({
-      title: speed >= 90 ? 'Fast Physical Attacker' : 'Physical Wallbreaker',
-      ability: formatPokemonName(hiddenAbility || primaryAbility),
-      item: megaStone || (speed >= 90 ? 'Focus Sash' : 'Choice Band'),
-      nature: speed >= 90 ? 'Jolly' : 'Adamant',
-      evSpread: '252 Atk / 4 SpD / 252 Spe',
-      moves: selectRecommendedMoves(pokemon, moveDetails, 'Fast Physical Attacker'),
-      note: 'Dành cho hướng tấn công vật lý; chiêu được chọn từ move pool của form này.'
-    });
-  }
-
-  if (bulk >= 245) {
-    suggestions.push({
-      title: 'Bulky Utility',
-      ability: formatPokemonName(hiddenAbility || primaryAbility),
-      item: megaStone || 'Leftovers',
-      nature: specialAttack > attack ? 'Calm / Bold' : 'Careful / Impish',
-      evSpread: '252 HP / 4 Def / 252 SpD',
-      moves: selectRecommendedMoves(pokemon, moveDetails, 'Bulky Support'),
-      note: 'Hướng chịu đòn/utility, ưu tiên chiêu status, hồi phục, pivot hoặc STAB ổn định.'
-    });
-  }
-
-  if (suggestions.length < 2) {
-    suggestions.push({
-      title: 'Balanced Coverage',
-      ability: formatPokemonName(primaryAbility),
-      item: megaStone || getSuggestedItem(pokemon),
-      nature: getSuggestedNature(pokemon),
-      evSpread: getSuggestedEvSpread(pokemon),
-      moves: selectRecommendedMoves(pokemon, moveDetails, 'Mixed Attacker'),
-      note: 'Phương án cân bằng khi stat có thể đi nhiều hướng.'
-    });
-  }
-
-  return suggestions.slice(0, 3);
+    return {
+      ...s,
+      moves: resolvedMoves
+    };
+  });
 }
 
 function dedupeMoves(moves) {
