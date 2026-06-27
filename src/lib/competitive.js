@@ -153,11 +153,55 @@ export function getSuggestedItem(pokemon) {
   const megaStone = getMegaHeldItem(pokemon.name);
   if (megaStone) return megaStone;
 
+  // VGC Meta lookup table for popular competitive Pokémon
+  const name = pokemon.name.toLowerCase();
+  if (name.includes('miraidon')) return 'Choice Specs';
+  if (name.includes('urshifu')) return 'Focus Sash';
+  if (name.includes('farigiraf')) return 'Mental Herb';
+  if (name.includes('iron-hands')) return 'Assault Vest';
+  if (name.includes('whimsicott')) return 'Focus Sash';
+  if (name.includes('chien-pao')) return 'Focus Sash';
+  if (name.includes('dragonite')) return 'Choice Band';
+  if (name.includes('flutter-mane')) return 'Booster Energy';
+  if (name.includes('amoonguss')) return 'Rocky Helmet';
+  if (name.includes('rillaboom')) return 'Assault Vest';
+  if (name.includes('archaludon')) return 'Assault Vest';
+  if (name.includes('pelipper')) return 'Focus Sash';
+  if (name.includes('basculegion')) return 'Choice Band';
+  if (name.includes('incineroar')) return 'Safety Goggles';
+  if (name.includes('gholdengo')) return 'Choice Specs';
+  if (name.includes('sneasler')) return 'Focus Sash';
+  if (name.includes('primarina')) return 'Assault Vest';
+  if (name.includes('ursaluna-bloodmoon')) return 'Life Orb';
+  if (name.includes('ursaluna')) return 'Flame Orb';
+  if (name.includes('torkoal')) return 'Charcoal';
+  if (name.includes('gallade')) return 'Focus Sash';
+  if (name.includes('kingambit')) return 'Black Glasses';
+  if (name.includes('maushold')) return 'Wide Lens';
+  if (name.includes('annihilape')) return 'Leftovers';
+  if (name.includes('clefairy')) return 'Eviolite';
+  if (name.includes('koraidon')) return 'Choice Band';
+  if (name.includes('raging-bolt')) return 'Assault Vest';
+  if (name.includes('chi-yu')) return 'Choice Specs';
+  if (name.includes('calyrex')) return 'Choice Specs';
+  if (name.includes('dragapult')) return 'Choice Band';
+  if (name.includes('great-tusk')) return 'Booster Energy';
+  if (name.includes('iron-valiant')) return 'Booster Energy';
+  if (name.includes('corviknight')) return 'Leftovers';
+  if (name.includes('ogerpon')) {
+    if (name.includes('hearthflame')) return 'Hearthflame Mask';
+    if (name.includes('wellspring')) return 'Wellspring Mask';
+    if (name.includes('cornerstone')) return 'Cornerstone Mask';
+    return 'Focus Sash';
+  }
+
+  // Fallback to single item based on role
   const role = getBattleRole(pokemon);
-  if (role.includes('Bulky')) return 'Leftovers / Sitrus Berry';
-  if (role.includes('Fast')) return 'Choice Scarf / Focus Sash';
-  if (role.includes('Special')) return 'Choice Specs / Life Orb';
-  return 'Choice Band / Life Orb';
+  if (role.includes('Bulky')) return 'Leftovers';
+  if (role.includes('Fast')) return 'Focus Sash';
+  if (role.includes('Special')) return 'Choice Specs';
+  if (role.includes('Mixed')) return 'Life Orb';
+  return 'Choice Band';
 }
 
 export function getSuggestedNature(pokemon) {
@@ -291,7 +335,7 @@ export function createBuildSuggestions(pokemon, moveDetails, abilities = []) {
     suggestions.push({
       title: speed >= 90 ? 'Fast Special Attacker' : 'Special Wallbreaker',
       ability: formatPokemonName(primaryAbility),
-      item: megaStone || (speed >= 90 ? 'Choice Specs / Life Orb' : 'Assault Vest / Life Orb'),
+      item: megaStone || (speed >= 90 ? 'Choice Specs' : 'Life Orb'),
       nature: speed >= 90 ? 'Timid' : 'Modest',
       evSpread: '252 SpA / 4 SpD / 252 Spe',
       moves: selectRecommendedMoves(pokemon, moveDetails, 'Fast Special Attacker'),
@@ -303,7 +347,7 @@ export function createBuildSuggestions(pokemon, moveDetails, abilities = []) {
     suggestions.push({
       title: speed >= 90 ? 'Fast Physical Attacker' : 'Physical Wallbreaker',
       ability: formatPokemonName(hiddenAbility || primaryAbility),
-      item: megaStone || (speed >= 90 ? 'Choice Band / Focus Sash' : 'Choice Band / Leftovers'),
+      item: megaStone || (speed >= 90 ? 'Focus Sash' : 'Choice Band'),
       nature: speed >= 90 ? 'Jolly' : 'Adamant',
       evSpread: '252 Atk / 4 SpD / 252 Spe',
       moves: selectRecommendedMoves(pokemon, moveDetails, 'Fast Physical Attacker'),
@@ -315,7 +359,7 @@ export function createBuildSuggestions(pokemon, moveDetails, abilities = []) {
     suggestions.push({
       title: 'Bulky Utility',
       ability: formatPokemonName(hiddenAbility || primaryAbility),
-      item: megaStone || 'Leftovers / Sitrus Berry',
+      item: megaStone || 'Leftovers',
       nature: specialAttack > attack ? 'Calm / Bold' : 'Careful / Impish',
       evSpread: '252 HP / 4 Def / 252 SpD',
       moves: selectRecommendedMoves(pokemon, moveDetails, 'Bulky Support'),
