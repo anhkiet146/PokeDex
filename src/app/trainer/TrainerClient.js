@@ -454,8 +454,6 @@ const arePokemonRelated = (nameA, nameB) => {
 };
 
 const getTeamSuggestionsList = (ownedIds, allPkmn, includeUnowned, format, archetype) => {
-  const getStat = (p, name) => p.stats?.find(s => s.name === name)?.value || 60;
-  
   const getRoleIcon = (role) => {
     const r = role.toLowerCase();
     if (r.includes('tailwind') || r.includes('speed') || r.includes('pivot')) return 'fa-wind';
@@ -466,120 +464,8 @@ const getTeamSuggestionsList = (ownedIds, allPkmn, includeUnowned, format, arche
     return 'fa-circle-nodes';
   };
 
-  const getDynamicTeamForArchetype = (arch) => {
-    if (!ownedIds || ownedIds.length === 0) return null;
-    const ownedPkmn = allPkmn.filter(p => ownedIds.includes(p.id));
-    if (ownedPkmn.length === 0) return null;
-
-    const candidates = [...ownedPkmn];
-    const selected = [];
-    const activeTypes = new Set();
-    const targetSize = Math.min(6, candidates.length);
-
-    for (let i = 0; i < targetSize; i++) {
-      let bestIndex = -1;
-      let bestScore = -Infinity;
-
-      for (let j = 0; j < candidates.length; j++) {
-        const p = candidates[j];
-        let baseScore = 0;
-        const atk = getStat(p, 'attack');
-        const spa = getStat(p, 'special-attack');
-        const spe = getStat(p, 'speed');
-        const hp = getStat(p, 'hp');
-        const def = getStat(p, 'defense');
-        const spdef = getStat(p, 'special-defense');
-
-        if (arch === 'offense') {
-          baseScore = Math.max(atk, spa) * 1.5 + spe;
-        } else if (arch === 'defense') {
-          baseScore = hp + def + spdef;
-        } else { // balanced
-          baseScore = hp + Math.max(atk, spa) + Math.max(def, spdef) + spe;
-        }
-
-        let penalty = 0;
-        p.types.forEach(t => {
-          if (activeTypes.has(t)) {
-            penalty += 45;
-          }
-        });
-
-        const finalScore = baseScore - penalty;
-        if (finalScore > bestScore) {
-          bestScore = finalScore;
-          bestIndex = j;
-        }
-      }
-
-      if (bestIndex !== -1) {
-        const chosen = candidates[bestIndex];
-        selected.push(chosen);
-        chosen.types.forEach(t => activeTypes.add(t));
-        candidates.splice(bestIndex, 1);
-        for (let k = candidates.length - 1; k >= 0; k--) {
-          if (arePokemonRelated(chosen.name, candidates[k].name)) {
-            candidates.splice(k, 1);
-          }
-        }
-      }
-    }
-
-    const detailedPokemons = selected.map(p => {
-      let role = 'Balanced Combatant';
-      const atk = getStat(p, 'attack');
-      const spa = getStat(p, 'special-attack');
-      const spe = getStat(p, 'speed');
-      const def = getStat(p, 'defense');
-      const hp = getStat(p, 'hp');
-
-      if (spe > 85 && Math.max(atk, spa) > 85) {
-        role = spa > atk ? 'Fast Special Sweeper' : 'Fast Physical Sweeper';
-      } else if (hp + def > 170) {
-        role = 'Bulky Defensive Pivot / Tank';
-      } else if (spe > 100) {
-        role = 'Speed Control / Fast Support';
-      } else if (atk > spa && atk > 90) {
-        role = 'Physical Attacker';
-      } else if (spa > atk && spa > 90) {
-        role = 'Special Attacker';
-      }
-
-      return {
-        ...p,
-        roleName: role,
-        roleIcon: getRoleIcon(role),
-        isOwned: true
-      };
-    });
-
-    const archLabel = arch.charAt(0).toUpperCase() + arch.slice(1);
-    const formatLabel = format === 'single' ? 'Singles' : 'Doubles';
-
-    return {
-      teamName: `Your Custom ${archLabel} ${formatLabel} Core`,
-      description: `Đội hình được xây dựng tự động từ bộ sưu tập của bạn, tối ưu hóa chỉ số cho thiên hướng '${archLabel}' và đa dạng hóa thuộc tính để tăng độ tùy biến chiến thuật.`,
-      operation: `Đội hình xoay quanh phối hợp các Pokémon hệ đối lập để bổ trợ phòng ngự. Hãy dẫn đầu bằng các Pokémon hỗ trợ tốc độ/tiện ích (Speed Control/Utility) để thiết lập thế trận, sau đó đưa các chủ lực Sweeper (${detailedPokemons.slice(0, 2).map(p => formatPokemonName(p.name)).join(', ')}) ra sân dồn sát thương dứt điểm trận đấu.`,
-      source: 'Collection Intelligence Builder',
-      pokemons: detailedPokemons,
-      unownedCount: 0
-    };
-  };
-
-  // Case 1: Suggesting dynamically from OWNED Pokémon only (Return at least 3 teams)
-  if (!includeUnowned) {
-    const teamsList = [];
-    const offenses = getDynamicTeamForArchetype('offense');
-    const defenses = getDynamicTeamForArchetype('defense');
-    const balanced = getDynamicTeamForArchetype('balanced');
-    if (offenses) teamsList.push(offenses);
-    if (defenses) teamsList.push(defenses);
-    if (balanced) teamsList.push(balanced);
-    return teamsList.slice(0, 3);
-  }
-
-  // Case 2: Suggesting from Predefined META Teams (includeUnowned is true)
-  let candidates = metaTeams.filter(t => t.format === format);
+  // Get and score all meta teams based on format
+  const candidates = metaTeams.filter(t => t.format === format);
 
   const scoredTeams = candidates.map(team => {
     const detailedPokemons = team.pokemons.map(tp => {
@@ -619,28 +505,43 @@ const getTeamSuggestionsList = (ownedIds, allPkmn, includeUnowned, format, arche
     };
   });
 
-  // Prioritize teams where unownedCount is between 1 and 4!
-  const priorityTeams = scoredTeams.filter(t => t.unownedCount >= 1 && t.unownedCount <= 4);
-  const otherTeams = scoredTeams.filter(t => t.unownedCount === 0 || t.unownedCount > 4);
+  let sortedTeams = [];
 
-  priorityTeams.sort((a, b) => a.unownedCount - b.unownedCount);
-  otherTeams.sort((a, b) => a.unownedCount - b.unownedCount);
+  if (includeUnowned) {
+    // Mode: Include Unowned
+    // Prioritize 1-3 unowned, then fully owned (0), then >3 unowned
+    const priorityTeams = scoredTeams.filter(t => t.unownedCount >= 1 && t.unownedCount <= 3);
+    const fullyOwnedTeams = scoredTeams.filter(t => t.unownedCount === 0);
+    const restTeams = scoredTeams.filter(t => t.unownedCount > 3);
 
-  const mergedTeams = [...priorityTeams, ...otherTeams];
+    priorityTeams.sort((a, b) => a.unownedCount - b.unownedCount);
+    fullyOwnedTeams.sort((a, b) => a.unownedCount - b.unownedCount);
+    restTeams.sort((a, b) => a.unownedCount - b.unownedCount);
 
-  mergedTeams.sort((a, b) => {
+    sortedTeams = [...priorityTeams, ...fullyOwnedTeams, ...restTeams];
+  } else {
+    // Mode: Only My Pokemon
+    // Prioritize fully owned (0) first, then 1-3 unowned, then >3 unowned
+    const fullyOwnedTeams = scoredTeams.filter(t => t.unownedCount === 0);
+    const priorityTeams = scoredTeams.filter(t => t.unownedCount >= 1 && t.unownedCount <= 3);
+    const restTeams = scoredTeams.filter(t => t.unownedCount > 3);
+
+    priorityTeams.sort((a, b) => a.unownedCount - b.unownedCount);
+    fullyOwnedTeams.sort((a, b) => a.unownedCount - b.unownedCount);
+    restTeams.sort((a, b) => a.unownedCount - b.unownedCount);
+
+    sortedTeams = [...fullyOwnedTeams, ...priorityTeams, ...restTeams];
+  }
+
+  // Boost teams matching selected archetype
+  sortedTeams.sort((a, b) => {
     const aMatch = a.archetype === archetype ? 1 : 0;
     const bMatch = b.archetype === archetype ? 1 : 0;
     if (aMatch !== bMatch) return bMatch - aMatch;
-    
-    const aTarget = (a.unownedCount >= 1 && a.unownedCount <= 4) ? 1 : 0;
-    const bTarget = (b.unownedCount >= 1 && b.unownedCount <= 4) ? 1 : 0;
-    if (aTarget !== bTarget) return bTarget - aTarget;
-
-    return a.unownedCount - b.unownedCount;
+    return 0;
   });
 
-  return mergedTeams.slice(0, 3);
+  return sortedTeams.slice(0, 3);
 };
 
 const cosineSimilarity = (vecA, vecB) => {
@@ -4169,16 +4070,6 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
                       <p style={{ margin: '0.4rem 0 0.6rem 0', fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
                         {suggestionResult.description}
                       </p>
-                      {suggestionResult.operation && (
-                        <div style={{ marginTop: '0.8rem', marginBottom: '1rem', padding: '0.8rem 1rem', background: '#f8fafc', borderRadius: '10px', border: '1px dashed #cbd5e1' }}>
-                          <strong style={{ fontSize: '0.82rem', color: 'var(--primary-color)', display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.35rem' }}>
-                            <i className="fa-solid fa-gamepad"></i> Hướng Dẫn Vận Hành & Chiến Thuật
-                          </strong>
-                          <p style={{ margin: 0, fontSize: '0.82rem', color: '#475569', lineHeight: '1.6' }}>
-                            {suggestionResult.operation}
-                          </p>
-                        </div>
-                      )}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.8rem' }}>
                         <span style={{ fontSize: '0.75rem', color: 'var(--primary-color)', fontWeight: 700 }}>
                           <i className="fa-solid fa-square-rss" style={{ marginRight: '0.3rem' }}></i>Source: {suggestionResult.source}
@@ -4341,6 +4232,97 @@ export default function TrainerClient({ initialTrainer, allPokemon }) {
                       <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
                         Add Pokémon to your collection in My Pokémon tab to receive smart team suggestions.
                       </p>
+                    </div>
+                  )}
+
+                  {suggestedTeam.length > 0 && (
+                    <div style={{ marginTop: '1.5rem', padding: '1.5rem', background: '#f8fafc', borderRadius: '14px', border: '1px dashed #cbd5e1', boxShadow: '0 4px 15px rgba(0,0,0,0.015)' }}>
+                      <h4 style={{ fontSize: '1.05rem', color: 'var(--primary-color)', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.8rem' }}>
+                        <i className="fa-solid fa-gamepad"></i> Hướng Dẫn Vận Hành & Chiến Thuật Đội Hình Chi Tiết
+                      </h4>
+                      
+                      <div style={{ fontSize: '0.85rem', color: '#334155', lineHeight: '1.65', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        <div>
+                          <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '0.2rem' }}>Cách Vận Hành Tổng Quan:</strong>
+                          <p style={{ margin: 0 }}>{suggestionResult.operation}</p>
+                        </div>
+
+                        <div style={{ borderTop: '1px dashed #cbd5e1', paddingTop: '1rem' }}>
+                          <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '0.6rem' }}>Chi Tiết Hướng Build Từng Thành Viên:</strong>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.8rem' }}>
+                            {suggestedTeam.map((member, mIdx) => {
+                              const suggestedItem = getSuggestedItem(member);
+                              const suggestedAbility = member.abilities?.[0] || 'Unknown';
+                              const suggestedNature = getSuggestedNature(member);
+                              const suggestedEvs = getSuggestedEvSpread(member);
+                              
+                              let descText = "";
+                              const nameLower = member.name.toLowerCase();
+                              if (nameLower.includes('miraidon')) {
+                                descText = "Sử dụng Electro Drift xả sát thương đặc biệt cực lớn trong sân điện. Trang bị Choice Specs tăng 50% Sp. Atk giúp dứt điểm nhanh.";
+                              } else if (nameLower.includes('urshifu')) {
+                                descText = "Chủ lực vật lý với Surging Strikes hoặc Wicked Blow luôn chí mạng bỏ qua mọi tầng buff thủ của đối thủ. Focus Sash giữ mạng khi solo.";
+                              } else if (nameLower.includes('flutter-mane')) {
+                                descText = "Sweeper đặc biệt tốc độ cao. Dùng Booster Energy tăng tốc độ để đi trước dọn sân bằng Moonblast/Shadow Ball.";
+                              } else if (nameLower.includes('incineroar')) {
+                                descText = "Support đảo sân số 1. Dùng Intimidate giảm công địch, Fake Out khống chế lượt 1 và Parting Shot để xoay tua.";
+                              } else if (nameLower.includes('amoonguss')) {
+                                descText = "Định hướng hút đòn bằng Rage Powder và ru ngủ bằng Spore. Rocky Helmet phạt sát thương các đòn tiếp xúc vật lý của đối thủ.";
+                              } else if (nameLower.includes('rillaboom')) {
+                                descText = "Thiết lập Grassy Terrain tăng HP cho team, đi đòn ưu tiên Grassy Glide cực nhanh và dùng Fake Out hỗ trợ.";
+                              } else if (nameLower.includes('archaludon')) {
+                                descText = "Tận dụng Stamina tăng thủ khi bị đánh. Sử dụng chiêu Electro Shot bắn ngay lập tức nếu đi cùng Pelipper gọi mưa.";
+                              } else if (nameLower.includes('farigiraf')) {
+                                descText = "Chặn các đòn ưu tiên của đối thủ nhờ Armor Tail, bảo vệ đồng đội dựng Trick Room hoặc hỗ trợ sát thương bằng Helping Hand.";
+                              } else if (nameLower.includes('great-tusk')) {
+                                descText = "Chiến binh vật lý phá giáp mạnh mẽ. Dùng Headlong Rush hoặc Close Combat xả sát thương, và Rapid Spin để dọn bẫy trên sân.";
+                              } else if (nameLower.includes('gengar')) {
+                                descText = "Gây áp lực khống chế cao với Shadow Ball/Sludge Bomb và Shadow Tag (nếu có). Có thể dùng Will-O-Wisp để phế vật lý đối thủ.";
+                              } else if (nameLower.includes('volcarona')) {
+                                descText = "Setup Quiver Dance tăng Sp. Atk, Sp. Def và Speed lên mức hủy diệt, sau đó quét sân bằng Fiery Dance/Bug Buzz.";
+                              } else if (nameLower.includes('greninja')) {
+                                descText = "Tối ưu hóa khả năng đổi thuộc tính linh hoạt với Protean/Battle Bond. Dùng Water Shuriken dứt điểm nhanh đối thủ.";
+                              } else if (nameLower.includes('sylveon')) {
+                                descText = "Dùng Pixilate chuyển Hyper Voice thành đòn hệ Fairy diện rộng cực mạnh, kết hợp Throat Spray tăng ngay 1 bậc Sp. Atk.";
+                              } else if (nameLower.includes('kingambit')) {
+                                descText = "Sức mạnh tăng tiến cuối trận nhờ Supreme Overlord. Dùng Sucker Punch đi trước để quét sạch tàn dư của địch.";
+                              } else if (nameLower.includes('roaring-moon')) {
+                                descText = "Chủ lực vật lý có tốc độ cực nhanh trong thời tiết Nắng. Sử dụng đòn Knock Off phá vật phẩm hoặc dựng Tailwind mở đường.";
+                              } else if (nameLower.includes('iron-crown')) {
+                                descText = "Sát thủ đặc biệt sử dụng Tachyon Cutter chém 2 phát liên tiếp chính xác tuyệt đối, sát thương tăng 30% trong sân điện/tâm linh.";
+                              } else if (nameLower.includes('iron-hands')) {
+                                descText = "Thùng sắt chống đỡ cực khỏe nhờ Assault Vest, xả sát thương vật lý tầm gần bằng Drain Punch/Wild Charge và dùng Fake Out mở màn.";
+                              } else if (nameLower.includes('indeedee')) {
+                                descText = "Hỗ trợ dựng sân tâm linh Psychic Terrain bảo vệ đồng đội khỏi Fake Out, và hút đòn đơn mục tiêu bằng Follow Me.";
+                              } else {
+                                descText = "Lắp đặt trang bị và hướng build cân bằng theo thuộc tính nguyên bản. Tập trung vào các chiêu thức khắc chế hệ và tăng lợi thế tốc độ.";
+                              }
+
+                              return (
+                                <div key={member.id} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '0.8rem', display: 'flex', flexDirection: 'column', gap: '0.35rem', boxShadow: '0 1px 3px rgba(0,0,0,0.01)' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <strong style={{ fontSize: '0.82rem', textTransform: 'capitalize', color: 'var(--text-primary)' }}>
+                                      {mIdx + 1}. {formatPokemonName(member.name)}
+                                    </strong>
+                                    <span style={{ fontSize: '0.7rem', color: member.isOwned ? '#10b981' : '#f59e0b', fontWeight: 800 }}>
+                                      {member.isOwned ? '✓ Đã sở hữu' : '✗ Chưa sở hữu'}
+                                    </span>
+                                  </div>
+                                  <div style={{ display: 'flex', gap: '0.8rem', fontSize: '0.74rem', color: 'var(--text-secondary)', flexWrap: 'wrap', marginTop: '0.15rem' }}>
+                                    <span><strong>Item:</strong> {suggestedItem}</span>
+                                    <span><strong>Ability:</strong> {formatPokemonName(suggestedAbility)}</span>
+                                    <span><strong>Nature:</strong> {suggestedNature}</span>
+                                    <span><strong>EVs:</strong> {suggestedEvs}</span>
+                                  </div>
+                                  <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.74rem', color: '#475569', fontStyle: 'italic', lineHeight: '1.5' }}>
+                                    {descText}
+                                  </p>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>

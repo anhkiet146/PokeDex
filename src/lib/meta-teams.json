@@ -128,6 +128,38 @@
     "source": "Victory Road VGC - Regulation G"
   },
   {
+    "name": "Regulation G: Iron Crown Psychic Spam",
+    "description": "A high-powered psychic offensive team centering around Iron Crown's Tachyon Cutter and Indeedee's Psychic Terrain.",
+    "operation": "Dựng Psychic Terrain bằng Indeedee-F để ngăn các đòn đi trước Fake Out, đồng thời tăng 30% sát thương đòn hệ Siêu Linh cho Tachyon Cutter của Iron Crown. Iron Valiant hỗ trợ dồn tốc độ dọn dẹp các mục tiêu yếu phòng thủ.",
+    "format": "double",
+    "archetype": "offense",
+    "pokemons": [
+      {"id": 876, "name": "indeedee-female", "role": "Psychic Surge Terrain Setter / Follow Me Redirection"},
+      {"id": 990, "name": "iron-crown", "role": "Tachyon Cutter Special Sweeper / Future Paradox"},
+      {"id": 1006, "name": "iron-valiant", "role": "Booster Energy Speed Attacker / Mixed Paradox"},
+      {"id": 727, "name": "incineroar", "role": "Intimidate Pivot / Fake Out & Snarl Support"},
+      {"id": 901, "name": "ursaluna-bloodmoon", "role": "Bulky Special Attacker / Mind's Eye Sweeper"},
+      {"id": 233, "name": "porygon2", "role": "Eviolite Trick Room Setter / Ice Beam"}
+    ],
+    "source": "Smogon VGC Reg G Meta"
+  },
+  {
+    "name": "Regulation H: Roaring Moon Tailwind Offense",
+    "description": "An aggressive physical Tailwind team featuring Roaring Moon as a speedy support and sweeper alongside Gholdengo.",
+    "operation": "Dẫn đầu với Roaring Moon kích hoạt Booster Energy tăng Speed để dựng Tailwind ngay lượt 1. Roaring Moon dùng Knock Off hoặc Acrobatics quét mục tiêu, tạo khoảng trống cho Gholdengo tích Nasty Plot xả Make It Rain và Primarina dọn sân bằng Hyper Voice.",
+    "format": "double",
+    "archetype": "offense",
+    "pokemons": [
+      {"id": 1005, "name": "roaring-moon", "role": "Tailwind Support / Protosynthesis Speed Sweeper"},
+      {"id": 1000, "name": "gholdengo", "role": "Good as Gold Nasty Plot Attacker"},
+      {"id": 730, "name": "primarina", "role": "Assault Vest Special Sweeper / Hyper Voice"},
+      {"id": 727, "name": "incineroar", "role": "Intimidate Debuffer / Fake Out Support"},
+      {"id": 591, "name": "amoonguss", "role": "Rage Powder Redirector / Spore Sleep Control"},
+      {"id": 892, "name": "urshifu-single-strike", "role": "Focus Sash physical Sweeper"}
+    ],
+    "source": "Smogon VGC Reg H Meta"
+  },
+  {
     "name": "Smogon OU: Dragapult / Kingambit Standard",
     "description": "A staple Smogon 6v6 Singles team built around Dragapult's speed and wall-breaking ability, culminating in a Kingambit sweep in the late-game.",
     "operation": "Sử dụng Dragapult và Iron Valiant để gây áp lực tấn công nhanh liên tục và bào máu đối thủ. Great Tusk dọn bẫy và dựng bẫy đá. Giữ Kingambit ở cuối trận để tối đa hóa nội tại Supreme Overlord, quét sạch đối thủ bằng đòn đi trước Sucker Punch.",
